@@ -3,9 +3,10 @@ import assert from 'node:assert/strict'
 import fs from 'node:fs'
 const out = process.argv[2]
 assert.ok(out, 'Usage: node tools/depth-capture.mjs <output-directory>')
+const origin = process.env.DSH_WEB_URL || 'http://127.0.0.1:58602'
 const targets = await (await fetch('http://127.0.0.1:9223/json')).json()
-const page = targets.find(t => t.type === 'page' && t.url.includes('/plugins/dsh-boot-grid-zmd/'))
-assert.ok(page, 'Open the installed boot route in the existing CDP browser first')
+const page = targets.find(t => t.type === 'page' && t.url.includes('/plugins/dsh-boot-grid-zmd/')) || targets.find(t => t.type === 'page')
+assert.ok(page, 'Existing CDP page required')
 const ws = new WebSocket(page.webSocketDebuggerUrl)
 let id = 0
 const pending = new Map()
@@ -30,7 +31,7 @@ try {
   await call('Page.enable')
   await call('Emulation.setDeviceMetricsOverride', {width:1440,height:900,deviceScaleFactor:1,mobile:false})
   for (const phase of ['access','order','close','boot']) {
-    await call('Page.navigate', {url:`http://127.0.0.1:50130/plugins/dsh-boot-grid-zmd/?jump=${phase}`})
+    await call('Page.navigate', {url:`${origin}/plugins/dsh-boot-grid-zmd/?jump=${phase}`})
     await pause(1600)
     await evalv(`(async()=>{
       const b=window.__BOOT__, s=b.S;

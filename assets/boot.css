@@ -128,6 +128,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 }
 .chip:hover { color: var(--acid); border-color: var(--acid-dim); }
 .chip.on { color: var(--acid); border-color: var(--acid-dim); }
+.chip.mode { color: var(--acid-dim); border-color: rgba(251, 251, 70, .28); }
 
 /* ---------- 左栏 ---------- */
 .leftcol {
@@ -652,6 +653,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
   .plate-txt span { display: none; }
   .idline { display: none; }
   .dock-meta .step-en { letter-spacing: .18em; }
+  .meta.bottom .tagline, .meta.bottom .tagline-sep { display: none; }
   .order-t { font-size: 9px; letter-spacing: .04em; white-space: normal; line-height: 1.4; }
   .order-echo { font-size: 8px; letter-spacing: .04em; white-space: normal; line-height: 1.4; }
   .order-h { font-size: 8px; letter-spacing: .1em; }

@@ -1,7 +1,8 @@
 // rAF interval sample on the existing installed page; no screenshot during sampling.
+const origin = process.env.DSH_WEB_URL || 'http://127.0.0.1:58602'
 const pages = await (await fetch('http://127.0.0.1:9223/json')).json()
-const page = pages.find(p => p.type === 'page' && p.url.includes('/plugins/dsh-boot-grid-zmd/'))
-if (!page) { console.error('open the installed route in the existing CDP browser'); process.exit(1) }
+const page = pages.find(p => p.type === 'page' && p.url.includes('/plugins/dsh-boot-grid-zmd/')) || pages.find(p => p.type === 'page')
+if (!page) { console.error('existing CDP page required'); process.exit(1) }
 const ws = new WebSocket(page.webSocketDebuggerUrl)
 let id = 0; const pending = new Map()
 ws.addEventListener('message', e => { const m = JSON.parse(e.data), p = pending.get(m.id); if (!p) return; pending.delete(m.id); m.error ? p.reject(new Error(m.error.message)) : p.resolve(m.result) })
@@ -11,7 +12,7 @@ const ev = async expression => (await call('Runtime.evaluate', { expression, ret
 await call('Page.enable'); await call('Runtime.enable')
 await call('Emulation.setDeviceMetricsOverride', { width: 1440, height: 900, deviceScaleFactor: 1, mobile: false })
 const sample = expr => ev(`(async()=>{const a=[];let prev=performance.now();await new Promise(resolve=>{function f(t){a.push(t-prev);prev=t;if(a.length<${expr})requestAnimationFrame(f);else resolve()}requestAnimationFrame(f)});a.shift();a.sort((x,y)=>x-y);return {n:a.length,median:+a[Math.floor(a.length*.5)].toFixed(1),p95:+a[Math.floor(a.length*.95)].toFixed(1),over50:a.filter(x=>x>50).length}})()`)
-await call('Page.navigate', { url: 'http://127.0.0.1:50130/plugins/dsh-boot-grid-zmd/?jump=boot' })
+await call('Page.navigate', { url: origin + '/plugins/dsh-boot-grid-zmd/?jump=boot' })
 await new Promise(r => setTimeout(r, 1200))
 console.log('boot', await sample(90))
 await call('Page.navigate', { url: 'about:blank' })

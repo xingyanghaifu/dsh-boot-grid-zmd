@@ -1,13 +1,13 @@
 // Regression on the already installed route, using an existing CDP browser only.
 import assert from 'node:assert/strict'
 import fs from 'node:fs'
-const origin = 'http://127.0.0.1:50130'
+const origin = process.env.DSH_WEB_URL || 'http://127.0.0.1:58602'
 const url = origin + '/plugins/dsh-boot-grid-zmd/'
 const out = new URL('../docs/depth/regression/', import.meta.url)
 fs.mkdirSync(out, {recursive:true})
 const pages = await (await fetch('http://127.0.0.1:9223/json')).json()
-const page = pages.find(p => p.type === 'page' && p.url.startsWith(url))
-assert.ok(page, 'Existing installed-route CDP page required')
+const page = pages.find(p => p.type === 'page' && p.url.startsWith(url)) || pages.find(p => p.type === 'page')
+assert.ok(page, 'Existing CDP page required')
 const ws = new WebSocket(page.webSocketDebuggerUrl)
 let id=0
 const pending=new Map(), errors=[], failedRequests=[], results=[]
@@ -71,8 +71,17 @@ try {
   assert.equal(await ev('getComputedStyle(document.getElementById("sweep")).transform'),'matrix(0, 0, 0, 1, 0, 0)')
   record('reduced motion keyboard flow and stable map',true)
   await call('Emulation.setEmulatedMedia',{features:[]})
-  // Real input takes over automatic hold.
-  await nav('?auto=1');await wait(550);await click('#soundChip');await wait(1600)
+  // Explicit mode toggle + real input takeover.
+  await nav('?auto=1');await wait(400)
+  assert.equal(await ev('__BOOT__.S.auto'),true)
+  await click('#modeBtn');await wait(250)
+  assert.equal(await ev('__BOOT__.S.auto'),false)
+  assert.match(await ev('document.cookie'),/dsh_boot_grid_zmd_mode=manual/)
+  await click('#modeBtn');await wait(300)
+  assert.equal(await ev('__BOOT__.S.auto'),true)
+  assert.match(await ev('document.cookie'),/dsh_boot_grid_zmd_mode=auto/)
+  record('mode toggle persists both directions',true)
+  await nav('?auto=1');await wait(550);await mouse('mousePressed',900,300,1);await mouse('mouseReleased',900,300);await wait(1600)
   assert.equal(await ev('__BOOT__.S.auto'),false);assert.equal(await ev('__BOOT__.S.phase'),'access');record('automatic demo manual takeover',true)
   // Five existing sizes x four states: test actionable targets, hint and text overflow.
   for(const [w,h] of [[1920,1080],[1440,900],[1366,768],[1280,720],[1024,768]]){
@@ -95,11 +104,14 @@ try {
   const n=await ev(`(()=>{const n=__BOOT__.nodes.find(n=>n.name==='昌吉'),r=document.getElementById('map').getBoundingClientRect();return {x:r.left+n.x,y:r.top+n.y-n.lift}})()`)
   await mouse('mouseMoved',n.x,n.y);await wait(150)
   assert.equal(await ev('__BOOT__.nodes[__BOOT__.S.hoverNode]?.name'),'昌吉');await shot('node-hover');record('raised node hit test',true)
-  // Existing installed page acts as host; inject unchanged real screen.js and exercise real iframe.
+  // Existing installed page acts as host; inject unchanged real screen.js.
   const screen=fs.readFileSync(new URL('../assets/screen.js',import.meta.url),'utf8')
-  await nav();await ev(screen);await until('!!document.querySelector("[data-dsh-boot-grid-zmd] iframe")')
+  await nav();await ev(`document.cookie='dsh_boot_grid_zmd_mode=manual; path=/; max-age=3600'`);await ev(screen)
+  await until('!!document.querySelector("[data-dsh-boot-grid-zmd] iframe")')
+  assert.match(await ev('document.querySelector("[data-dsh-boot-grid-zmd] iframe").getAttribute("src")'),/auto=0/)
+  record('overlay defaults to saved manual mode',true)
   await key('Escape','Escape',27);await until('!document.querySelector("[data-dsh-boot-grid-zmd]")');record('overlay Escape removes iframe',true)
-  await nav();await ev(screen)
+  await nav();await ev(`document.cookie='dsh_boot_grid_zmd_mode=auto; path=/; max-age=3600'`);await ev(screen)
   await until('!document.querySelector("[data-dsh-boot-grid-zmd]")',25000);record('auto four phases and iframe handoff',true)
   // Per-frame idle sample, no screenshot capture during the interval.
   await nav('?jump=boot')

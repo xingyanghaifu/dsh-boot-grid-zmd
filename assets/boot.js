@@ -13,6 +13,10 @@
   const dock = $('dock');
   const Q = new URLSearchParams(location.search);
   const AUTO = Q.get('auto') === '1' || Q.get('demo') === '1';
+  const MODE_COOKIE = 'dsh_boot_grid_zmd_mode';
+  function writeMode(mode) {
+    try { document.cookie = `${MODE_COOKIE}=${mode}; path=/; max-age=31536000; SameSite=Lax`; } catch (e) { /* file:// 或无 cookie 环境 */ }
+  }
   const JUMP = (Q.get('jump') || '').toLowerCase();
   const IN_FRAME = (() => { try { return window.top !== window.self; } catch (e) { return true; } })();
   const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -64,7 +68,7 @@
     brkTrack: $('brkTrack'), brkFill: $('brkFill'), brkKnob: $('brkKnob'), kv: $('kv'),
     bootFill: $('bootFill'), bootPct: $('bootPct'), dockHint: $('dockHint'),
     toast: $('toast'), skip: $('skipBtn'), sweep: $('sweep'), hush: $('hush'),
-    done: $('done'), doneCta: $('doneCta'), doneAuto: $('doneAuto'), sound: $('soundChip'),
+    done: $('done'), doneCta: $('doneCta'), doneAuto: $('doneAuto'), sound: $('soundChip'), modeBtn: $('modeBtn'),
     mapCoord: $('mapCoord'), nodeTip: $('nodeTip'), wave: $('wave'),
   };
 
@@ -601,11 +605,14 @@
     requestAnimationFrame(step);
   }
 
-  function manualTakeover() {
-    if (!S.auto) return;
-    S.auto = false;
+  function syncMode() {
+    el.mode.textContent = S.auto ? 'AUTO DEMO' : 'MANUAL';
+    el.modeBtn.textContent = S.auto ? '模式 自动' : '模式 手动';
+    el.modeBtn.setAttribute('aria-label', S.auto ? '播放模式：自动。点击切换为手动操作' : '播放模式：手动。点击切换为自动演示');
+    el.modeBtn.title = S.auto ? '当前为自动演示；点击切换为手动操作（下次启动也保持）' : '当前为手动操作；点击切换为自动演示（下次启动也保持）';
+  }
+  function stopAuto() {
     clearAuto();
-    el.mode.textContent = 'MANUAL';
     // 自动演示正在进行中的按住动作要让位给真实输入
     if (S.phase === 'access' && S.holding) {
       S.holding = false;
@@ -613,6 +620,36 @@
       el.holdBtn.classList.remove('active', 'ok');
       paintHold(0);
     }
+  }
+  function resumeAuto() {
+    if (!S.auto || S.done) return;
+    if (S.phase === 'access') {
+      if (!S.holding) autoAt(autoHoldRun, 350);
+    } else if (S.phase === 'order') {
+      if (S.orderTyped && !S.repeated) autoAt(doRepeat, 500);
+      else if (S.orderTyped && S.repeated) autoAt(doExec, 500);
+    } else if (S.phase === 'close' && !S.brkClosed) {
+      autoAt(autoCloseRun, 500);
+    }
+  }
+  function setMode(mode, persist = true) {
+    if (S.done) return;
+    const auto = mode === 'auto';
+    if (persist) writeMode(mode);
+    if (auto === S.auto) { syncMode(); return; }
+    if (auto) {
+      S.auto = true;
+      syncMode();
+      resumeAuto();
+    } else {
+      stopAuto();
+      S.auto = false;
+      syncMode();
+    }
+  }
+  function manualTakeover() {
+    if (!S.auto) return;
+    setMode('manual');
   }
 
   /* ============================== 地图 ============================== */
@@ -1143,12 +1180,23 @@
       if (!S.sound) humStop(); else if (S.userGesture) blip(880, 0.05, 'square', 0.015);
     });
 
+    el.modeBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      setMode(S.auto ? 'manual' : 'auto');
+      blip(760, 0.05, 'square', 0.012);
+    });
+
     document.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') { ev.preventDefault(); skipAll(); return; }
       if (S.done && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); leave(); }
     }, true);
 
-    const wake = () => { S.userGesture = true; if (S.auto) manualTakeover(); };
+    const wake = (ev) => {
+      const t = ev.target;
+      if (t && t.closest && (t.closest('#modeBtn') || t.closest('#soundChip'))) return;
+      S.userGesture = true;
+      if (S.auto) manualTakeover();
+    };
     document.addEventListener('pointerdown', wake, true);
     document.addEventListener('keydown', wake, true);
 
@@ -1199,7 +1247,7 @@
     paintHold(0);
     setProgress(0);
     updateTelemetry();
-    el.mode.textContent = S.auto ? 'AUTO DEMO' : 'MANUAL';
+    syncMode();
     log('DSH TERMINAL SC-01 · 电源接通');
     log('等待调度员接入 · STANDBY');
     requestAnimationFrame(loop);

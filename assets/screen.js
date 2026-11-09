@@ -18,6 +18,13 @@
   var holdMs = cfg.holdMs || 60000
   var loadMs = cfg.loadMs || 9000
 
+  // 默认手动；上次在启动屏里选过自动则继续自动。cookie 不受端口变化影响。
+  var mode = 'manual'
+  try {
+    var matched = document.cookie.match(/(?:^|;\s*)dsh_boot_grid_zmd_mode=(auto|manual)/)
+    if (matched) mode = matched[1]
+  } catch (error) { /* cookie 不可用则保持手动 */ }
+
   var root = null
   var settled = false
   var loadTimer = 0
@@ -51,7 +58,7 @@
     ].join(';')
 
     var frame = document.createElement('iframe')
-    frame.src = route + '/?auto=1'
+    frame.src = route + '/?auto=' + (mode === 'auto' ? '1' : '0')
     frame.setAttribute('title', '国家电网启动序列')
     frame.style.cssText = 'display:block;width:100%;height:100%;border:0'
 

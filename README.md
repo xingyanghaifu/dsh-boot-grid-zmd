@@ -14,11 +14,11 @@
 ## 直接看
 
 ```bash
-start dsh-boot-grid-zmd/assets/index.html          # 交互模式
+start dsh-boot-grid-zmd/assets/index.html          # 手动模式（默认）
 start "dsh-boot-grid-zmd/assets/index.html?auto=1" # 自动演示（约 16 秒）
 ```
 
-调试定位：`?jump=access|order|close|boot|done`。
+启动屏底部有 **模式 手动 / 模式 自动** 切换：默认手动，点一下即可改为自动演示；选择会写入 cookie，下次启动保持。调试定位：`?jump=access|order|close|boot|done`。
 
 ## 交互
 
@@ -29,6 +29,7 @@ start "dsh-boot-grid-zmd/assets/index.html?auto=1" # 自动演示（约 16 秒�
 | 03 合闸并网 | 拖动把手到「合」（≥90%）；方向键也可 | 电压 0→525.0 kV 实时跟随；未到位弹回 |
 | 04 全网启动 | 等待 | 自西向东扫描、城市点亮、频率稳定 50.00 Hz |
 | 收尾 | 点击任意处 | 420ms 黄扫 → 黑场 → 完成页 → 交付给 DSH（覆盖层内 3 秒自动进入） |
+| 模式 | 底部「模式 手动 / 自动」 | 默认手动；切换后写入 cookie，下次启动保持；自动播放中任何真实操作都会转为手动 |
 
 - `Esc` 任意阶段跳过；音效可关；`prefers-reduced-motion` 有降级。
 - 地图节点可悬停：经纬读数跟随，显示站名与电压等级。

@@ -13,10 +13,10 @@
 | 直接运行 | `start dsh-boot-grid-zmd/assets/index.html` | 通过（file:// 下 CSS/JS/数据/PNG 全部加载） |
 | 自动演示 | `.../index.html?auto=1` | 通过：约 16s 自动走完四拍并进入完成页 |
 | 插件真实路由 | `node tools/serve.mjs 8123` → `http://127.0.0.1:8123/plugins/dsh-boot-grid-zmd/` | 通过：HTML/CSS/JS/数据/PNG 均 200，页面完整渲染（`docs/shots/40-subpath.png`） |
-| DSH 实机路由 | 装进当前 profile 后请求 `http://127.0.0.1:50130/plugins/dsh-boot-grid-zmd/` | 通过：index/CSS/JS/数据/PNG 200；旧 `dsh-boot-grid` 路由 404（已停用），新屏为唯一启动屏（`docs/shots/41-live-route.png`） |
+| DSH 实机路由 | 装进当前 profile 后请求 `$DSH_WEB_URL/plugins/dsh-boot-grid-zmd/`（本轮 58602） | 通过：index/CSS/JS/数据/PNG 200；旧 `dsh-boot-grid` 路由 404（已停用），新屏为唯一启动屏（`docs/shots/41-live-route.png`） |
 | DSH 注入逻辑 | `node smoke.mjs` | 通过：路由注册、注入表 2 条、6 个资产、404 拦截、脚本引用检查 |
 | 页面静态检查 | `node tools/check.mjs` | 通过：50 个 id / 46 个 JS 引用无缺失、无语法错误、脚本文件存在 |
-| 空间层次复检 | `node tools/depth-test.mjs` | 通过：15 项 PASS；详见 §9 |
+| 空间层次 + 播放模式复检 | `node tools/depth-test.mjs` | 通过：17 项 PASS；详见 §9 |
 
 ---
 
@@ -152,7 +152,7 @@ node tools/perf.mjs                # 90 帧间隔采样
 
 ## 8. 未覆盖 / 风险
 
-1. **未在浏览器里录屏验证刷新后的 iframe 覆盖层**：插件已在当前 profile 安装并启用，旧启动屏已停用；资源路由与页面渲染已在 50130 实机验证（`41-live-route.png`），但「刷新 DSH 首页 → 覆盖层自动播放」这一步需要用户刷新页面触发，未在本轮自动录屏。
+1. **未在浏览器里录屏验证刷新后的 iframe 覆盖层**：插件已在当前 profile 安装并启用，旧启动屏已停用；资源路由与页面渲染已在当前 DSH 端口实机验证，但「刷新 DSH 首页 → 覆盖层铺开」这一步需要用户刷新页面触发，未在本轮自动录屏。覆盖层现在**默认手动**，刷新后会停在接入核验等待操作；需要自动演示时点底部「模式 手动」。选择会记住。
 2. **官方 VI 手册 / 矢量标识 / 色卡未获取**：见设计说明 §10 与对照记录 §4。
 3. **地图非标准地图**：仅本地演示，不可直接公开发布。
 4. **未做移动端竖屏版式**：主验收尺寸 1440×900；1280×720 为短屏下限；1024×768 只做应急降级验证。
@@ -175,10 +175,22 @@ node tools/perf.mjs                # 90 帧间隔采样
 | 自动演示被真实输入接管 | PASS |
 | 1920 / 1440 / 1366 / 1280 / 1024 × 四阶段：按钮不越坞，指令/回显/提示不横向裁切 | PASS |
 | 抬高后的节点顶面命中「昌吉」 | PASS |
-| 注入真实 `screen.js` 后 Esc 移除覆盖层；自动四阶段并完成 iframe 交还 | PASS |
+| 底部「模式 手动 / 自动」双向切换，cookie 写入正确 | PASS |
+| 自动模式下真实鼠标点击立即转手动并记住选择 | PASS |
+| 覆盖层默认手动：注入 `screen.js` 后 iframe `src` 含 `auto=0` | PASS |
+| cookie=`auto` 时覆盖层自动四阶段并完成 iframe 交还 | PASS |
+| 注入真实 `screen.js` 后 Esc 移除覆盖层 | PASS |
 | 控制台异常 | 0 |
 | 页面资源失败 | 仅浏览器自动请求的 `/favicon.ico` 404；页面自身无失败 |
 | 89 帧帧间隔（1440×900，`?jump=boot`） | 中位 16.7ms / p95 16.7ms / >50ms 0 帧 |
 | 同版本烘焙前采样 | 中位 33.3ms / p95 50ms / >50ms 3 帧（后通过烘焙消除） |
 
-说明：本轮修改了 `assets/index.html`、`assets/boot.css`、`assets/boot.js`，新增 `tools/depth-capture.mjs`、`tools/depth-test.mjs`、`tools/perf.mjs`、`docs/depth/`；未改官方标识、品牌文案、地图数据、四阶段流程或 DSH 路由。
+说明：本轮修改了 `assets/index.html`、`assets/boot.css`、`assets/boot.js`、`assets/screen.js`，新增 `tools/depth-capture.mjs`、`tools/depth-test.mjs`、`tools/perf.mjs`、`docs/depth/`；未改官方标识、品牌文案、地图数据、四阶段流程或 DSH 路由。
+
+### 9.1 播放模式设置（默认手动）
+
+- 启动屏底部新增「模式 手动 / 模式 自动」按钮；**默认手动**，方便自己点完四拍。
+- 切换写入 cookie `dsh_boot_grid_zmd_mode`（host 级，跨 DSH 端口有效）；`screen.js` 读取同一 cookie，决定 iframe 使用 `?auto=0` 还是 `?auto=1`。
+- 自动播放中任何真实指针/按键操作会立即转手动并写入 `manual`，避免下次又被自动带走。
+- 证据：`docs/depth/mode/manual-1440.png`、`auto-1440.png`、`manual-1024.png`。
+- 清空浏览器 cookie 或换 host（如 `localhost` ↔ `127.0.0.1`）会回到默认手动；不做跨设备同步。

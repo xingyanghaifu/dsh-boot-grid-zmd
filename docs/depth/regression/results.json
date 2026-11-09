@@ -17,6 +17,10 @@
       "data": true
     },
     {
+      "name": "mode toggle persists both directions",
+      "data": true
+    },
+    {
       "name": "automatic demo manual takeover",
       "data": true
     },
@@ -45,6 +49,10 @@
       "data": true
     },
     {
+      "name": "overlay defaults to saved manual mode",
+      "data": true
+    },
+    {
       "name": "overlay Escape removes iframe",
       "data": true
     },
@@ -56,8 +64,8 @@
       "name": "local frame interval sample",
       "data": {
         "samples": 89,
-        "medianMs": 16.700000000000045,
-        "p95Ms": 16.700000000000273,
+        "medianMs": 16.699999999999818,
+        "p95Ms": 16.799999999999955,
         "over50ms": 0
       }
     },
@@ -67,35 +75,43 @@
         "exceptions": [],
         "failedRequests": [
           {
-            "url": "http://127.0.0.1:50130/favicon.ico",
+            "url": "http://127.0.0.1:58602/favicon.ico",
             "status": 404
           },
           {
-            "url": "http://127.0.0.1:50130/favicon.ico",
+            "url": "http://127.0.0.1:58602/favicon.ico",
             "status": 404
           },
           {
-            "url": "http://127.0.0.1:50130/favicon.ico",
+            "url": "http://127.0.0.1:58602/favicon.ico",
             "status": 404
           },
           {
-            "url": "http://127.0.0.1:50130/favicon.ico",
+            "url": "http://127.0.0.1:58602/favicon.ico",
             "status": 404
           },
           {
-            "url": "http://127.0.0.1:50130/favicon.ico",
+            "url": "http://127.0.0.1:58602/favicon.ico",
             "status": 404
           },
           {
-            "url": "http://127.0.0.1:50130/favicon.ico",
+            "url": "http://127.0.0.1:58602/favicon.ico",
             "status": 404
           },
           {
-            "url": "http://127.0.0.1:50130/favicon.ico",
+            "url": "http://127.0.0.1:58602/favicon.ico",
             "status": 404
           },
           {
-            "url": "http://127.0.0.1:50130/favicon.ico",
+            "url": "http://127.0.0.1:58602/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://127.0.0.1:58602/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://127.0.0.1:58602/favicon.ico",
             "status": 404
           }
         ]
@@ -105,35 +121,43 @@
   "errors": [],
   "failedRequests": [
     {
-      "url": "http://127.0.0.1:50130/favicon.ico",
+      "url": "http://127.0.0.1:58602/favicon.ico",
       "status": 404
     },
     {
-      "url": "http://127.0.0.1:50130/favicon.ico",
+      "url": "http://127.0.0.1:58602/favicon.ico",
       "status": 404
     },
     {
-      "url": "http://127.0.0.1:50130/favicon.ico",
+      "url": "http://127.0.0.1:58602/favicon.ico",
       "status": 404
     },
     {
-      "url": "http://127.0.0.1:50130/favicon.ico",
+      "url": "http://127.0.0.1:58602/favicon.ico",
       "status": 404
     },
     {
-      "url": "http://127.0.0.1:50130/favicon.ico",
+      "url": "http://127.0.0.1:58602/favicon.ico",
       "status": 404
     },
     {
-      "url": "http://127.0.0.1:50130/favicon.ico",
+      "url": "http://127.0.0.1:58602/favicon.ico",
       "status": 404
     },
     {
-      "url": "http://127.0.0.1:50130/favicon.ico",
+      "url": "http://127.0.0.1:58602/favicon.ico",
       "status": 404
     },
     {
-      "url": "http://127.0.0.1:50130/favicon.ico",
+      "url": "http://127.0.0.1:58602/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:58602/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:58602/favicon.ico",
       "status": 404
     }
   ]
