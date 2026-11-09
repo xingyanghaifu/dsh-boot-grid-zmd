@@ -3,7 +3,7 @@
 > 国家电网有限公司 × 明日方舟：终末地（ZMD）风格 · DeepSeek Harness 启动动画
 > 交互式四拍启动序列：**按住接入 → 调度指令复诵 → 拖动合闸 → 全网启动**
 
-![启动序列](docs/shots/05-boot.png)
+![启动序列](docs/depth/after/boot.png)
 
 ## 这是什么
 
@@ -32,6 +32,7 @@ start "dsh-boot-grid-zmd/assets/index.html?auto=1" # 自动演示（约 16 秒�
 
 - `Esc` 任意阶段跳过；音效可关；`prefers-reduced-motion` 有降级。
 - 地图节点可悬停：经纬读数跟随，显示站名与电压等级。
+- 空间层次：地图是带石墨侧壁的实体板，城市点/线路/节点分层；数据层通电后抬起，面板与控件有统一的上亮下暗结构（对比见 [docs/depth/](docs/depth/optimization.md)）。
 
 ## 装进 DSH
 
@@ -66,7 +67,8 @@ docs/
   design.md             设计说明（概念、token、动效、交互、ZMD 对照）
   official-crosswalk.md 官方文档对照记录（逐项依据、可信度、风险）
   acceptance.md         自检与验收记录
-  shots/                各阶段截图
+  depth/                空间层次优化：说明、前后对比、回归结果
+  shots/                各阶段历史截图
 ```
 
 ## 设计依据

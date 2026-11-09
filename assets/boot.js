@@ -375,9 +375,10 @@
     el.brkKnob.addEventListener('pointerdown', (ev) => {
       if (S.phase !== 'close' || S.brkClosed) return;
       ev.preventDefault();
+      cancelAnimationFrame(S.brkSpring);
       S.brkDrag = true;
+      el.brkKnob.classList.add('dragging');
       el.brkKnob.setPointerCapture(ev.pointerId);
-      el.brkKnob.style.transition = 'none';
       el.brkKnob.focus({ preventScroll: true });
       if (S.sound && S.userGesture) humStart();
       humLevel(S.brk);
@@ -390,6 +391,7 @@
     const release = (ev) => {
       if (!S.brkDrag) return;
       S.brkDrag = false;
+      el.brkKnob.classList.remove('dragging');
       try { el.brkKnob.releasePointerCapture(ev.pointerId); } catch (e) {}
       if (S.brk >= 0.9) { closeBreaker(); return; }
       humStop();
@@ -417,8 +419,8 @@
     const from = S.brk, t0 = performance.now();
     cancelAnimationFrame(S.brkSpring);
     const step = (now) => {
-      const k = clamp((now - t0) / 280, 0, 1);
-      paintBreaker(from * (1 - (1 - Math.pow(1 - k, 2))), false);
+      const k = REDUCED ? 1 : clamp((now - t0) / 280, 0, 1);
+      paintBreaker(from * Math.pow(1 - k, 2), false);
       if (k < 1) S.brkSpring = requestAnimationFrame(step);
     };
     S.brkSpring = requestAnimationFrame(step);
@@ -431,6 +433,8 @@
     if (S.done || S.brkClosed) return;
     S.brkClosed = true;
     S.brkDrag = false;
+    cancelAnimationFrame(S.brkSpring);
+    el.brkKnob.classList.remove('dragging');
     paintBreaker(1, false);
     el.brkKnob.classList.add('closed');
     el.brkKnob.setAttribute('aria-disabled', 'true');
@@ -533,7 +537,7 @@
     if (!REDUCED) {
       el.sweep.classList.add('go');
       thunk();
-      setTimeout(() => { el.hush.classList.add('go'); stage.classList.add('punch'); }, 420);
+      setTimeout(() => { el.hush.classList.add('go'); }, 420);
       setTimeout(chime, 540);
     }
     setTimeout(() => showDone(), REDUCED ? 420 : 1150);
@@ -616,12 +620,15 @@
   const mapWrap = $('mapwrap');
   const mapCv = $('map');
   const mapCtx = mapCv.getContext('2d');
+  const groundCv = $('mapGround');
+  const groundCtx = groundCv.getContext('2d');
   const bgCv = $('bg');
   const bgCtx = bgCv.getContext('2d');
   const waveCv = el.wave;
   const waveCtx = waveCv.getContext('2d');
 
-  let mapW = 0, mapH = 0, mapFit = null, mapStatic = null, dotsSorted = [], nodes = [], linePaths = [];
+  let mapW = 0, mapH = 0, mapFit = null, mapStatic = null, dotsCanvas = null, hotDotsCanvas = null, nodes = [], linePaths = [];
+  let mapLift = 12, mapBounds = null;
   let bgW = 0, bgH = 0;
 
   const UHV = [
@@ -666,6 +673,8 @@
   function buildMap() {
     const size = fitCanvas(mapCv, mapCtx);
     mapW = size.w; mapH = size.h;
+    fitCanvas(groundCv, groundCtx);
+    mapLift = clamp(mapH * .024, 9, 15);
     if (!CHINA) return false;
     const [LON0, LAT0, LON1, LAT1] = CHINA.bounds;
     const cosLat = Math.cos(35 * Math.PI / 180);
@@ -687,113 +696,145 @@
     const c = mapStatic.getContext('2d');
     c.setTransform(DPR, 0, 0, DPR, 0, 0);
 
-    // 经纬参考线
-    c.strokeStyle = 'rgba(236,238,233,.045)';
-    c.lineWidth = 1;
-    for (let lon = 80; lon <= 130; lon += 10) {
-      const a = project(lon, LAT0 + 1); const b = project(lon, LAT1 - 1);
-      c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
-    }
-    for (let lat = 20; lat <= 50; lat += 10) {
-      const a = project(LON0 + 1, lat); const b = project(LON1 - 1, lat);
-      c.beginPath(); c.moveTo(a[0], a[1]); c.lineTo(b[0], b[1]); c.stroke();
-    }
-
-    // 省界
-    c.lineJoin = 'round';
-    c.lineCap = 'round';
-    c.lineWidth = 0.9;
-    c.strokeStyle = 'rgba(236,238,233,.20)';
-    for (const ring of CHINA.provinces) {
-      c.beginPath();
+    // 地面 → 石墨侧壁 → 地表；复用现有边界，不伪造地形或倾转国土。
+    const land = new Path2D();
+    const rings = CHINA.provinces.map(ring => {
+      const path = new Path2D();
       for (let i = 0; i < ring.length; i += 2) {
         const p = toXY(ring[i], ring[i + 1]);
-        if (i) c.lineTo(p[0], p[1]); else c.moveTo(p[0], p[1]);
+        if (i) path.lineTo(...p); else path.moveTo(...p);
       }
-      c.closePath();
-      c.stroke();
-    }
-
-    // 城市光点底
-    dotsSorted = [];
-    const dots = CHINA.dots;
-    for (let i = 0; i < dots.length; i += 3) {
-      const p = toXY(dots[i], dots[i + 1]);
-      if (p[0] < -10 || p[0] > mapW + 10 || p[1] < -10 || p[1] > mapH + 10) continue;
-      dotsSorted.push([p[0], p[1], dots[i + 2]]);
-    }
-    dotsSorted.sort((a, b) => a[0] - b[0]);
-    for (const [x, y, w] of dotsSorted) {
-      const r = 0.4 + w * 0.9;
-      c.fillStyle = `rgba(236,238,233,${(0.10 + w * 0.16).toFixed(3)})`;
-      c.fillRect(x - r / 2, y - r / 2, r, r);
-    }
-
-    // 节点
-    nodes = NODES.map((n) => {
-      const p = project(n.at[0], n.at[1]);
-      return { ...n, x: p[0], y: p[1] };
+      path.closePath(); land.addPath(path);
+      return path;
     });
+    const g = groundCtx;
+    g.clearRect(0, 0, mapW, mapH);
+    g.lineWidth = 1;
+    g.strokeStyle = 'rgba(236,237,237,.055)';
+    const horizon = mapH * .22;
+    for (let i = 0; i <= 10; i++) {
+      const x = 24 + (mapW - 48) * i / 10;
+      g.beginPath(); g.moveTo(lerp(mapW / 2, x, .7), horizon);
+      g.lineTo(x, mapH - 24); g.stroke();
+    }
+    for (const v of [.08, .2, .38, .64, 1]) {
+      const y = lerp(horizon, mapH - 24, v);
+      g.beginPath(); g.moveTo(24, y); g.lineTo(mapW - 24, y); g.stroke();
+    }
+    g.save(); g.translate(3, mapLift + 5);
+    g.fillStyle = 'rgba(0,0,0,.45)'; g.fill(land);
+    g.restore();
+    g.save(); g.translate(0, mapLift);
+    g.fillStyle = '#090f14'; g.fill(land);
+    g.restore();
+    for (let y = mapLift - 1; y >= 1; y -= 3) {
+      g.save(); g.translate(0, y);
+      g.fillStyle = y > mapLift / 2 ? '#0c161e' : '#14222c';
+      g.fill(land); g.restore();
+    }
 
-    // 线路路径
+    const face = c.createLinearGradient(0, 40, mapW * .75, mapH);
+    face.addColorStop(0, '#273945');
+    face.addColorStop(.55, '#1a2933');
+    face.addColorStop(1, '#131f28');
+    c.fillStyle = face; c.fill(land);
+    c.save(); c.clip(land);
+    c.strokeStyle = 'rgba(236,237,237,.045)'; c.lineWidth = 1;
+    for (let lon = 80; lon <= 130; lon += 10) {
+      const a = project(lon, LAT0 + 1), b = project(lon, LAT1 - 1);
+      c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke();
+    }
+    for (let lat = 20; lat <= 50; lat += 10) {
+      const a = project(LON0 + 1, lat), b = project(LON1 - 1, lat);
+      c.beginPath(); c.moveTo(...a); c.lineTo(...b); c.stroke();
+    }
+    c.restore();
+    c.lineJoin = 'round'; c.lineCap = 'round'; c.lineWidth = 1;
+    c.strokeStyle = 'rgba(236,237,237,.2)';
+    for (const path of rings) c.stroke(path);
+
+    mapBounds = { minX: 26, maxX: mapW - 26 };
+
+    // 地图与城市点各烘焙一次；逐帧只做一次 clip + drawImage，避免 5000 次状态切换。
+    g.drawImage(mapStatic, 0, 0, mapW, mapH);
+    dotsCanvas = document.createElement('canvas');
+    dotsCanvas.width = mapCv.width; dotsCanvas.height = mapCv.height;
+    const d = dotsCanvas.getContext('2d');
+    d.setTransform(DPR, 0, 0, DPR, 0, 0);
+    hotDotsCanvas = document.createElement('canvas');
+    hotDotsCanvas.width = mapCv.width; hotDotsCanvas.height = mapCv.height;
+    const hd = hotDotsCanvas.getContext('2d');
+    hd.setTransform(DPR, 0, 0, DPR, 0, 0);
+    for (let i = 0; i < CHINA.dots.length; i += 3) {
+      const p = toXY(CHINA.dots[i], CHINA.dots[i + 1]);
+      if (p[0] < 0 || p[0] > mapW || p[1] < 0 || p[1] > mapH) continue;
+      const w = CHINA.dots[i + 2];
+      d.fillStyle = `rgba(236,237,237,${(.24 + w * .24).toFixed(3)})`;
+      d.fillRect(p[0], p[1], .5 + w * .55, .5 + w * .55);
+      if (w > .55) {
+        hd.fillStyle = `rgba(55,214,174,${(.3 + w * .3).toFixed(3)})`;
+        hd.fillRect(p[0], p[1], .6 + w * .7, .6 + w * .7);
+      }
+    }
+
+    nodes = NODES.map((n, index) => {
+      const [x, y] = project(...n.at);
+      return { ...n, index, x, y, lift: n.major ? 11 : 6 };
+    });
     linePaths = UHV.map((line, idx) => {
-      const pts = line.pts.map((q) => project(q[0], q[1]));
-      let len = 0;
-      for (let i = 1; i < pts.length; i++) len += Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]);
-      return { ...line, pts, len, idx };
+      const raw = line.pts.map(q => project(...q));
+      const pts = [raw[0]];
+      let start = raw[0];
+      for (let i = 1; i < raw.length - 1; i++) {
+        const end = [lerp(raw[i][0], raw[i + 1][0], .5), lerp(raw[i][1], raw[i + 1][1], .5)];
+        // 与原来的二次曲线相同；采样一次，线芯与脉冲共享同一弧长。
+        for (let j = 1; j <= 16; j++) {
+          const u = j / 16, v = 1 - u;
+          pts.push([v*v*start[0] + 2*v*u*raw[i][0] + u*u*end[0], v*v*start[1] + 2*v*u*raw[i][1] + u*u*end[1]]);
+        }
+        start = end;
+      }
+      pts.push(raw[raw.length - 1]);
+      const lengths = [0];
+      for (let i = 1; i < pts.length; i++) lengths.push(lengths[i - 1] + Math.hypot(pts[i][0] - pts[i - 1][0], pts[i][1] - pts[i - 1][1]));
+      return { ...line, pts, lengths, len: lengths[lengths.length - 1], idx };
     });
     return true;
   }
 
   function drawCorridor(ctx, pts) {
-    ctx.beginPath();
-    ctx.moveTo(pts[0][0], pts[0][1]);
-    for (let i = 1; i < pts.length - 1; i++) {
-      const xc = (pts[i][0] + pts[i + 1][0]) / 2;
-      const yc = (pts[i][1] + pts[i + 1][1]) / 2;
-      ctx.quadraticCurveTo(pts[i][0], pts[i][1], xc, yc);
-    }
-    const last = pts[pts.length - 1];
-    ctx.lineTo(last[0], last[1]);
+    ctx.beginPath(); ctx.moveTo(...pts[0]);
+    for (let i = 1; i < pts.length; i++) ctx.lineTo(...pts[i]);
   }
 
-  function pathPointAt(pts, u) {
-    const segs = pts.length - 1;
-    const x = clamp(u, 0, 1) * segs;
-    const i = Math.min(segs - 1, Math.floor(x));
-    const k = x - i;
-    return [lerp(pts[i][0], pts[i + 1][0], k), lerp(pts[i][1], pts[i + 1][1], k)];
+  function pathPointAt(line, u) {
+    const distance = clamp(u, 0, 1) * line.len;
+    let i = 1;
+    while (i < line.lengths.length - 1 && line.lengths[i] < distance) i++;
+    const span = line.lengths[i] - line.lengths[i - 1];
+    const k = span ? (distance - line.lengths[i - 1]) / span : 0;
+    return [lerp(line.pts[i - 1][0], line.pts[i][0], k), lerp(line.pts[i - 1][1], line.pts[i][1], k)];
   }
 
-  let lastMapTime = 0;
   function drawMap(now) {
-    if (!mapFit || !mapStatic) return;
+    if (!mapFit || !dotsCanvas) return;
     const ctx = mapCtx;
     ctx.clearRect(0, 0, mapW, mapH);
-    const t = now / 1000;
-    const reveal = S.reveal;
+    const t = REDUCED ? 0 : now / 1000;
+    const reveal = REDUCED ? Math.floor(S.reveal * 4) / 4 : S.reveal;
     const energy = S.energize;
     const booting = S.booting || S.phase === 'done';
+    const sx = mapBounds.minX + reveal * (mapBounds.maxX - mapBounds.minX);
+    ctx.globalAlpha = 1;
 
-    // 底图（蓝图态）
-    ctx.globalAlpha = 0.6 + 0.1 * energy;
-    ctx.drawImage(mapStatic, 0, 0, mapW, mapH);
-
-    // 扫描已揭示区域
-    if (reveal > 0.001) {
-      const sx = 26 + reveal * (mapW - 52);
-      ctx.save();
-      ctx.beginPath();
-      ctx.rect(0, 0, sx, mapH);
-      ctx.clip();
-      ctx.globalAlpha = 1;
-      ctx.drawImage(mapStatic, 0, 0, mapW, mapH);
-      ctx.restore();
+    // 底稿贴地，通电数据抬起；地表不再跟着数据一起增亮。
+    for (const line of linePaths) {
+      drawCorridor(ctx, line.pts);
+      ctx.strokeStyle = 'rgba(210,224,230,.16)'; ctx.lineWidth = 1; ctx.stroke();
     }
 
-    // 扫描线
-    if (reveal > 0.001 && reveal < 0.999) {
-      const sx = 26 + reveal * (mapW - 52);
+    // 扫描线只落在地图；地面投影和地表扫描相差一个底座高度。
+    if (!REDUCED && reveal > 0.001 && reveal < 0.999) {
       const g = ctx.createLinearGradient(sx - 46, 0, sx, 0);
       g.addColorStop(0, 'rgba(251,251,70,0)');
       g.addColorStop(0.75, 'rgba(251,251,70,.06)');
@@ -807,94 +848,77 @@
       for (let y = 12; y < mapH; y += 34) ctx.fillRect(sx - 4, y, 9, 1);
     }
 
-    // 待机时的线路底稿：让地图先读成「电网」，而不是一张普通地图
-    if (reveal < 0.001) {
-      for (const line of linePaths) {
-        drawCorridor(ctx, line.pts);
-        ctx.strokeStyle = 'rgba(236,237,233,.10)';
-        ctx.lineWidth = 1;
-        ctx.stroke();
+    // 城市点烘焙在地表层，按扫描前沿一次裁剪揭示；带电城市叠绿色热点。
+    if (reveal > 0.001) {
+      ctx.save();
+      ctx.beginPath(); ctx.rect(0, 0, sx, mapH); ctx.clip();
+      ctx.drawImage(dotsCanvas, 0, 0, mapW, mapH);
+      if (energy > .5) {
+        ctx.globalAlpha = clamp((energy - .5) / .3, 0, 1);
+        ctx.drawImage(hotDotsCanvas, 0, 0, mapW, mapH);
       }
+      ctx.restore();
     }
 
-    // 点亮城市
-    const lit = Math.floor(reveal * dotsSorted.length);
-    for (let i = 0; i < lit; i++) {
-      const [x, y, w] = dotsSorted[i];
-      const flick = 0.7 + 0.3 * Math.sin(t * 2.2 + i * 0.7);
-      if (w > 0.55) {
-        ctx.fillStyle = `rgba(55,214,174,${(0.55 * flick).toFixed(3)})`;
-      } else {
-        ctx.fillStyle = `rgba(236,238,233,${(0.42 * flick).toFixed(3)})`;
-      }
-      const r = 0.9 + w * 1.1;
-      ctx.fillRect(x - r / 2, y - r / 2, r, r);
-    }
-
-    // 线路
+    // 高度由通电阶段一次建立：地表灰底稿保持不动，绿线路抬至节点顶面附近。
+    const networkLift = 6 * (REDUCED ? 1 : clamp(energy / .22, 0, 1));
+    ctx.save(); ctx.translate(0, -networkLift);
+    // 线路按共享弧长依序出现，带电后只使用绿色。
     for (const line of linePaths) {
-      const local = clamp((reveal - line.idx * 0.045) / 0.52, 0, 1);
+      const startAt = .035 + line.idx * .027;
+      const local = clamp((reveal - startAt) / .42, 0, 1);
       if (local <= 0) continue;
       drawCorridor(ctx, line.pts);
-      ctx.setLineDash([line.len * local, line.len]);
-      ctx.lineDashOffset = 0;
-      ctx.strokeStyle = 'rgba(251,251,70,.30)';
-      ctx.lineWidth = 3;
-      ctx.stroke();
-      ctx.strokeStyle = `rgba(${Math.round(251 - 196 * energy)},${Math.round(251 - 37 * energy)},${Math.round(70 + 104 * energy)},.85)`;
-      ctx.lineWidth = 1;
-      ctx.stroke();
-      ctx.setLineDash([]);
-
-      // 电流脉冲
-      if (local >= 1 && energy > 0.04) {
-        const pulseCount = 2;
-        for (let k = 0; k < pulseCount; k++) {
-          const u = ((t * 0.13 + k / pulseCount + line.idx * 0.11) % 1);
-          const head = pathPointAt(line.pts, u);
-          const tail = pathPointAt(line.pts, Math.max(0, u - 0.035));
-          const a = energy * 0.75;
-          ctx.strokeStyle = `rgba(190,255,235,${a.toFixed(3)})`;
-          ctx.lineWidth = 2.2;
-          ctx.shadowColor = 'rgba(55,214,174,.8)';
-          ctx.shadowBlur = 8;
-          ctx.beginPath(); ctx.moveTo(tail[0], tail[1]); ctx.lineTo(head[0], head[1]); ctx.stroke();
-          ctx.shadowBlur = 0;
+      ctx.setLineDash([line.len * local, line.len]); ctx.lineDashOffset = 0;
+      ctx.strokeStyle = energy > .15 ? 'rgba(8,42,34,.75)' : 'rgba(8,13,17,.5)';
+      ctx.lineWidth = energy > .15 ? 3 : 2; ctx.stroke();
+      ctx.strokeStyle = energy > .15 ? 'rgba(55,214,174,.88)' : 'rgba(220,228,221,.52)';
+      ctx.lineWidth = 1; ctx.stroke(); ctx.setLineDash([]);
+      if (local >= .995 && energy > .04) {
+        for (let k = 0; k < 2; k++) {
+          const u = (t * .13 + k / 2 + line.idx * .11) % 1;
+          const head = pathPointAt(line, u), tail = pathPointAt(line, Math.max(0, u - .035));
+          ctx.strokeStyle = `rgba(179,255,221,${(.48 * energy).toFixed(3)})`;
+          ctx.lineWidth = 1.3; ctx.beginPath(); ctx.moveTo(...tail); ctx.lineTo(...head); ctx.stroke();
         }
       }
     }
 
-    // 节点
+    ctx.restore();
+    // 节点细柱：暗投影 → 窄边侧面 → 方形顶面。
     const hover = S.hoverNode;
+    const labelBoxes = [];
     for (const n of nodes) {
-      const on = energy > 0.5;
-      const col = on ? 'rgba(55,214,174,' : 'rgba(251,251,70,';
-      ctx.strokeStyle = col + (n.major ? '.95)' : '.55)');
-      ctx.lineWidth = 1;
-      const r = n.major ? 4.5 : 3;
-      ctx.strokeRect(n.x - r, n.y - r, r * 2, r * 2);
-      ctx.fillStyle = col + '.9)';
-      ctx.fillRect(n.x - 1, n.y - 1, 2, 2);
+      const on = energy > .5, lift = n.lift, r = n.major ? 4.5 : 3;
+      const topY = n.y - lift;
+      ctx.fillStyle = 'rgba(0,0,0,.36)'; ctx.fillRect(n.x - 5 + 2, n.y - 1, 10, 3);
+      ctx.fillStyle = on ? '#12644f' : '#53605d';
+      ctx.beginPath(); ctx.moveTo(n.x-r, topY+r); ctx.lineTo(n.x-r, n.y+r); ctx.lineTo(n.x, n.y+r+2); ctx.lineTo(n.x, topY+r+2); ctx.closePath(); ctx.fill();
+      ctx.beginPath(); ctx.moveTo(n.x, topY+r+2); ctx.lineTo(n.x, n.y+r+2); ctx.lineTo(n.x+r, n.y+r); ctx.lineTo(n.x+r, topY+r); ctx.closePath(); ctx.fill();
+      ctx.fillStyle = on ? '#1d785f' : '#263943';
+      ctx.fillRect(n.x-r, topY-r, r*2, r*2);
+      ctx.strokeStyle = on ? 'rgba(55,214,174,.9)' : 'rgba(251,251,70,.72)';
+      ctx.lineWidth = 1; ctx.strokeRect(n.x-r+.5, topY-r+.5, r*2-1, r*2-1);
+      ctx.fillStyle = on ? '#9af1d2' : '#fbfb46'; ctx.fillRect(n.x-1, topY-1, 2, 2);
       if (n.major) {
-        ctx.font = '9px "Bahnschrift", "Consolas", monospace';
-        ctx.fillStyle = 'rgba(236,238,233,.82)';
-        ctx.letterSpacing = '1px';
-        const tw = ctx.measureText(n.name).width;
-        const right = n.x < mapW * 0.7;
-        ctx.fillText(n.name, right ? n.x + 9 : n.x - tw - 9, n.y - 7);
-        ctx.strokeStyle = 'rgba(236,238,233,.22)';
-        ctx.beginPath(); ctx.moveTo(n.x, n.y); ctx.lineTo(right ? n.x + 7 : n.x - 7, n.y - 7); ctx.stroke();
+        ctx.font = '9px "Bahnschrift", "Consolas", monospace'; ctx.letterSpacing = '1px';
+        const tw = ctx.measureText(n.name).width, right = n.x < mapW * .7;
+        const tx = clamp(right ? n.x + 10 : n.x - tw - 10, 12, mapW - tw - 12);
+        let ty = topY - 5;
+        for (let i = 0; i < 4; i++) {
+          if (!labelBoxes.some(b => tx - 3 < b.x + b.w && tx + tw + 3 > b.x && ty - 10 < b.y + 14 && ty + 3 > b.y)) break;
+          ty -= 15;
+        }
+        labelBoxes.push({x:tx - 3,y:ty - 10,w:tw + 6});
+        ctx.strokeStyle = 'rgba(236,237,237,.25)'; ctx.beginPath(); ctx.moveTo(n.x,topY-r); ctx.lineTo(tx + tw/2,ty+2); ctx.stroke();
+        ctx.fillStyle = 'rgba(8,14,19,.88)'; ctx.fillRect(tx - 3, ty - 10, tw + 6, 14);
+        ctx.fillStyle = 'rgba(236,238,233,.88)'; ctx.fillText(n.name, tx, ty);
       }
       if (hover === n.index) {
-        ctx.strokeStyle = 'rgba(251,251,70,.9)';
-        ctx.lineWidth = 1;
-        const q = 12 + Math.sin(t * 6) * 2;
-        for (const [dx, dy] of [[-1, -1], [1, -1], [-1, 1], [1, 1]]) {
-          ctx.beginPath();
-          ctx.moveTo(n.x + dx * q, n.y + dy * (q - 5));
-          ctx.lineTo(n.x + dx * q, n.y + dy * q);
-          ctx.lineTo(n.x + dx * (q - 5), n.y + dy * q);
-          ctx.stroke();
+        const q = 13;
+        ctx.strokeStyle = 'rgba(251,251,70,.9)'; ctx.lineWidth = 1;
+        for (const [dx,dy] of [[-1,-1],[1,-1],[-1,1],[1,1]]) {
+          ctx.beginPath(); ctx.moveTo(n.x+dx*q,n.y-lift+dy*(q-5)); ctx.lineTo(n.x+dx*q,n.y-lift+dy*q); ctx.lineTo(n.x+dx*(q-5),n.y-lift+dy*q); ctx.stroke();
         }
       }
     }
@@ -1013,23 +1037,26 @@
     el.mapCoord.textContent = `N ${clamp(lat, 0, 60).toFixed(1)}°  E ${clamp(lon, 60, 150).toFixed(1)}°`;
     let best = -1, bd = 15;
     nodes.forEach((n, i) => {
-      const d = Math.hypot(n.x - x, n.y - y);
+      const d = Math.min(Math.hypot(n.x - x, n.y - y), Math.hypot(n.x - x, n.y - n.lift - y));
       if (d < bd) { bd = d; best = i; }
     });
     if (best !== S.hoverNode) {
       S.hoverNode = best;
+      mapWrap.classList.toggle('focus-node', best >= 0);
       if (best >= 0) {
         const n = nodes[best];
         el.nodeTip.querySelector('b').textContent = n.name + ' · ' + n.kv;
         el.nodeTip.querySelector('span').textContent = 'HOVER · SCHEMATIC NODE';
-        el.nodeTip.style.left = (n.x / mapW * 100) + '%';
-        el.nodeTip.style.top = (n.y / mapH * 100) + '%';
         el.nodeTip.classList.add('show');
+        const width = el.nodeTip.offsetWidth, height = el.nodeTip.offsetHeight;
+        el.nodeTip.style.left = clamp(n.x + 14, 8, mapW - width - 8) + 'px';
+        el.nodeTip.style.top = clamp(n.y - n.lift - height - 12, 24, mapH - height - 8) + 'px';
       } else el.nodeTip.classList.remove('show');
     }
   }
   function onMapLeave() {
     S.hoverNode = -1;
+    mapWrap.classList.remove('focus-node');
     el.nodeTip.classList.remove('show');
   }
 
@@ -1045,13 +1072,17 @@
 
   /* ============================== 主循环 ============================== */
   let teleFrame = 0;
+  let reducedFrame = '';
   function loop(now) {
-    if (S.phase !== 'done') {
-      drawBg(now);
-      drawMap(now);
-      drawWave(now);
-      if (++teleFrame % 6 === 0) updateTelemetry();
+    if (S.phase === 'done') return;
+    const key = `${S.phase}:${S.hold.toFixed(2)}:${S.brk.toFixed(2)}:${Math.floor(S.reveal * 4)}:${S.hoverNode}:${mapW}:${mapH}`;
+    if (!REDUCED || key !== reducedFrame) {
+      drawBg(REDUCED ? 0 : now);
+      drawMap(REDUCED ? 0 : now);
+      drawWave(REDUCED ? 0 : now);
+      reducedFrame = key;
     }
+    if (++teleFrame % 6 === 0) updateTelemetry();
     requestAnimationFrame(loop);
   }
 

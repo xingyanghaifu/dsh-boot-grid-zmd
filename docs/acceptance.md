@@ -15,7 +15,8 @@
 | 插件真实路由 | `node tools/serve.mjs 8123` → `http://127.0.0.1:8123/plugins/dsh-boot-grid-zmd/` | 通过：HTML/CSS/JS/数据/PNG 均 200，页面完整渲染（`docs/shots/40-subpath.png`） |
 | DSH 实机路由 | 装进当前 profile 后请求 `http://127.0.0.1:50130/plugins/dsh-boot-grid-zmd/` | 通过：index/CSS/JS/数据/PNG 200；旧 `dsh-boot-grid` 路由 404（已停用），新屏为唯一启动屏（`docs/shots/41-live-route.png`） |
 | DSH 注入逻辑 | `node smoke.mjs` | 通过：路由注册、注入表 2 条、6 个资产、404 拦截、脚本引用检查 |
-| 页面静态检查 | `node tools/check.mjs` | 通过：48 个 id / 44 个 JS 引用无缺失、无语法错误、脚本文件存在 |
+| 页面静态检查 | `node tools/check.mjs` | 通过：50 个 id / 46 个 JS 引用无缺失、无语法错误、脚本文件存在 |
+| 空间层次复检 | `node tools/depth-test.mjs` | 通过：15 项 PASS；详见 §9 |
 
 ---
 
@@ -55,7 +56,7 @@
 | 1920 × 1080 | 通过；标题/读数放大，未溢出画框 | `shots/31-access-1920.png` |
 | 1366 × 768（常见笔记本） | 通过；未压到画框/危险带 | `shots/32-access-1366.png` |
 | 1280 × 720（短屏降级） | 通过；隐藏状态行/seq、缩小读数，未压到底框 | `shots/30-access-1280.png` |
-| 1024 × 768（应急降级） | 通过；隐藏操作员 idline，版式收紧（非主验收尺寸） | `shots/33-access-1024.png` |
+| 1024 × 768（应急降级） | 通过；隐藏操作员 idline，指令/回显换行显示（非主验收尺寸） | `docs/depth/regression/1024x768-*.png` |
 
 ### 3.2 终末地风格一致性（对照 `research/zmd-style.md`）
 
@@ -75,7 +76,7 @@
 ### 3.3 线条与艺术性
 
 - 省界 1px / 结构线 1px / 数据线 0.9px；无粗描边堆叠。
-- 地图是单色线稿 + 单色光点，颜色只在「带电」时介入，不靠多色渐变制造层次。
+- 地图是石墨实体板 + 单色线稿 + 单色光点；厚度来自浅底座、上亮下暗的侧壁和遮挡顺序，颜色只在「带电」时介入。
 - 黄扫、扫描线、竖轨、读数构成四个视觉重音，其余留白；信息密度靠排版而非装饰。
 - 所有图形为直角正交构图；唯一旋转/圆形是状态点与进度环，符合「工业感来自线宽统一 + 密度」。
 
@@ -125,6 +126,8 @@
 | 7 | 悬停 tooltip 不出现 | `pointermove` 绑定在 `#map`，但坐标换算用了错误原点 | 修正经纬反算，节点 15px 命中 |
 | 8 | 自动演示中真实输入后按住状态卡死 | `holding` 未复位 | `manualTakeover()` 复位 holding、取消 rAF、清空填充 |
 | 9 | 完成页未显示时按钮可被 Tab 到；`aria-live` 每帧播报进度；DSH 覆盖层播完要等点击才交还 | 完成页只做了 opacity；dock 带 aria-live；无自动交还 | 完成页改 `visibility` 切换、背景层 `inert`、去掉 dock 的 aria-live、iframe 内 3 秒倒计时自动交还 |
+| 10 | 1024×768 指令与回显被横向裁切 | 指令使用 `white-space: nowrap`，窄屏容器不足 | 1120px 以下允许换行并缩小字号/字距，回归通过 |
+| 11 | 首版深度地图逐帧重绘 5153 点，帧间隔 33.3ms | 每点切换 `fillStyle` + 每帧整图 `drawImage` | 地图/城市点/热点烘焙，逐帧一次 `clip + drawImage`，回到 16.7ms |
 
 ---
 
@@ -140,6 +143,9 @@ node tools/capture.mjs "file:///E:/dshwork/dsh-boot-grid-zmd/assets/index.html" 
 node tools/test.mjs                # 四拍交互全流程
 node tools/probe.mjs               # 悬停 / 黄扫 / 键盘 / 减弱动效
 node tools/takeover.mjs            # 自动演示接管 + iframe 消息
+node tools/depth-capture.mjs docs/depth/after   # 同状态空间层次截图
+node tools/depth-test.mjs          # 本轮全量回归（已安装路由）
+node tools/perf.mjs                # 90 帧间隔采样
 ```
 
 ---
@@ -149,5 +155,30 @@ node tools/takeover.mjs            # 自动演示接管 + iframe 消息
 1. **未在浏览器里录屏验证刷新后的 iframe 覆盖层**：插件已在当前 profile 安装并启用，旧启动屏已停用；资源路由与页面渲染已在 50130 实机验证（`41-live-route.png`），但「刷新 DSH 首页 → 覆盖层自动播放」这一步需要用户刷新页面触发，未在本轮自动录屏。
 2. **官方 VI 手册 / 矢量标识 / 色卡未获取**：见设计说明 §10 与对照记录 §4。
 3. **地图非标准地图**：仅本地演示，不可直接公开发布。
-4. **未做移动端竖屏版式**：1280×720 为最小验收尺寸。
+4. **未做移动端竖屏版式**：主验收尺寸 1440×900；1280×720 为短屏下限；1024×768 只做应急降级验证。
 5. **音频未做听感验收**：只验证了 AudioContext 创建与音量上限（0.035 增益），未做主观试听；默认在首次真实输入后才发声，可一键关闭。
+6. **帧率只做本机 headless 采样**：16.7ms 中位只代表本次 Edge/headless 环境，不代表所有 GPU/DPI 或真实 DSH 覆盖层场景。
+
+---
+
+## 9. 空间层次优化复检（2026-11-09 第二轮）
+
+对比图：[接入](depth/compare-access.png) · [指令](depth/compare-order.png) · [合闸](depth/compare-close.png) · [启动](depth/compare-boot.png)
+完整说明：[`depth/optimization.md`](depth/optimization.md)；原始结果：[`depth/regression/results.json`](depth/regression/results.json)。
+
+| 检查项 | 结果 |
+|---|---|
+| 短按中断后回 access、`hold=0` | PASS |
+| 复诵前「执行」禁用；合闸 48% 松手回弹到 0 | PASS |
+| 真实鼠标四阶段到完成页 | PASS |
+| 减弱动效键盘四阶段；地图 220ms 内无变化；扫描条隐藏；无黄扫 | PASS |
+| 自动演示被真实输入接管 | PASS |
+| 1920 / 1440 / 1366 / 1280 / 1024 × 四阶段：按钮不越坞，指令/回显/提示不横向裁切 | PASS |
+| 抬高后的节点顶面命中「昌吉」 | PASS |
+| 注入真实 `screen.js` 后 Esc 移除覆盖层；自动四阶段并完成 iframe 交还 | PASS |
+| 控制台异常 | 0 |
+| 页面资源失败 | 仅浏览器自动请求的 `/favicon.ico` 404；页面自身无失败 |
+| 89 帧帧间隔（1440×900，`?jump=boot`） | 中位 16.7ms / p95 16.7ms / >50ms 0 帧 |
+| 同版本烘焙前采样 | 中位 33.3ms / p95 50ms / >50ms 3 帧（后通过烘焙消除） |
+
+说明：本轮修改了 `assets/index.html`、`assets/boot.css`、`assets/boot.js`，新增 `tools/depth-capture.mjs`、`tools/depth-test.mjs`、`tools/perf.mjs`、`docs/depth/`；未改官方标识、品牌文案、地图数据、四阶段流程或 DSH 路由。

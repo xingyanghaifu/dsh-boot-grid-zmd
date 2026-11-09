@@ -1,0 +1,140 @@
+{
+  "results": [
+    {
+      "name": "short hold restores access",
+      "data": true
+    },
+    {
+      "name": "readback gating and breaker return",
+      "data": true
+    },
+    {
+      "name": "pointer flow completes four stages",
+      "data": true
+    },
+    {
+      "name": "reduced motion keyboard flow and stable map",
+      "data": true
+    },
+    {
+      "name": "automatic demo manual takeover",
+      "data": true
+    },
+    {
+      "name": "1920x1080 all phase bounds and text",
+      "data": true
+    },
+    {
+      "name": "1440x900 all phase bounds and text",
+      "data": true
+    },
+    {
+      "name": "1366x768 all phase bounds and text",
+      "data": true
+    },
+    {
+      "name": "1280x720 all phase bounds and text",
+      "data": true
+    },
+    {
+      "name": "1024x768 all phase bounds and text",
+      "data": true
+    },
+    {
+      "name": "raised node hit test",
+      "data": true
+    },
+    {
+      "name": "overlay Escape removes iframe",
+      "data": true
+    },
+    {
+      "name": "auto four phases and iframe handoff",
+      "data": true
+    },
+    {
+      "name": "local frame interval sample",
+      "data": {
+        "samples": 89,
+        "medianMs": 16.700000000000045,
+        "p95Ms": 16.700000000000273,
+        "over50ms": 0
+      }
+    },
+    {
+      "name": "runtime and asset errors",
+      "data": {
+        "exceptions": [],
+        "failedRequests": [
+          {
+            "url": "http://127.0.0.1:50130/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://127.0.0.1:50130/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://127.0.0.1:50130/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://127.0.0.1:50130/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://127.0.0.1:50130/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://127.0.0.1:50130/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://127.0.0.1:50130/favicon.ico",
+            "status": 404
+          },
+          {
+            "url": "http://127.0.0.1:50130/favicon.ico",
+            "status": 404
+          }
+        ]
+      }
+    }
+  ],
+  "errors": [],
+  "failedRequests": [
+    {
+      "url": "http://127.0.0.1:50130/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:50130/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:50130/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:50130/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:50130/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:50130/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:50130/favicon.ico",
+      "status": 404
+    },
+    {
+      "url": "http://127.0.0.1:50130/favicon.ico",
+      "status": 404
+    }
+  ]
+}

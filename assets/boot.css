@@ -1,4 +1,4 @@
-﻿/* =========================================================================
+/* =========================================================================
    国家电网 × 终末地（ZMD）启动序列 — 视觉样式
    规则来源：research/zmd-style.md（本地 endfield-boot 源码 + 像素取样）
    线宽三档 1/2/6px；全直角（无 clip-path）；黄只做读数/进度/角标/危险带；
@@ -25,6 +25,11 @@
   --dockh: clamp(112px, 15.5vh, 142px);
   --ease-line: cubic-bezier(.6, 0, .2, 1);
   --ease-letter: cubic-bezier(.2, .9, .2, 1);
+  --surface-top: #222e37;
+  --surface-bottom: #141c23;
+  --edge-light: rgba(236, 237, 237, .22);
+  --edge-dark: #080d11;
+  --text-support: rgba(236, 237, 237, .65);
 }
 
 * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -50,7 +55,12 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
   isolation: isolate;
 }
 
-#bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
+#bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: .48; }
+#stage::before {
+  content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  background: linear-gradient(90deg, rgba(7, 12, 17, .55), transparent 37%),
+    radial-gradient(ellipse at 68% 40%, transparent 30%, rgba(0, 0, 0, .26) 100%);
+}
 
 /* ---------- 网格底（64 / 16px 双层） ---------- */
 .grid {
@@ -58,7 +68,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
   background-image:
     linear-gradient(to right, rgba(236, 237, 237, .045) 1px, transparent 1px),
     linear-gradient(to bottom, rgba(236, 237, 237, .045) 1px, transparent 1px);
-  background-size: 64px 64px;
+  background-size: 64px 64px; opacity: .55;
   -webkit-mask-image: radial-gradient(115% 90% at 55% 42%, #000 25%, transparent 72%);
   mask-image: radial-gradient(115% 90% at 55% 42%, #000 25%, transparent 72%);
 }
@@ -274,8 +284,26 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
   position: absolute; left: 31.5vw; right: max(5.2vw, calc(var(--edge) + 14px)); top: 11vh; bottom: calc(var(--edge) + 26px + var(--dockh));
   z-index: 6;
 }
-#map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; }
-.map-frame { position: absolute; inset: 0; pointer-events: none; }
+#mapGround, #map { position: absolute; inset: 0; width: 100%; height: 100%; display: block; z-index: 1; }
+#mapGround { pointer-events: none; }
+#map { z-index: 2; }
+.mapwrap::before {
+  content: ""; position: absolute; inset: 12px 8px;
+  z-index: 0; pointer-events: none;
+  background: linear-gradient(150deg, rgba(28, 40, 49, .68), rgba(13, 19, 24, .5) 72%);
+  border: 1px solid rgba(236, 237, 237, .14);
+  border-top-color: rgba(236, 237, 237, .22);
+  box-shadow: 0 3px 0 #080d11, 0 4px 0 rgba(236, 237, 237, .08), 0 10px 16px rgba(0, 0, 0, .18);
+}
+.map-frame {
+  position: absolute; inset: 0; z-index: 2; pointer-events: none;
+  border-top: 1px solid rgba(236, 237, 237, .1);
+  border-bottom: 1px solid rgba(0, 0, 0, .38);
+}
+.mapwrap { isolation: isolate; }
+.mapwrap.focus-node { z-index: 24; }
+.mapwrap .node-tip { z-index: 5; }
+.map-grid-caption, .map-coord, .map-scale { pointer-events: none; z-index: 3; background: var(--bg); padding: 2px 5px; }
 .mf { position: absolute; width: 10px; height: 10px; border: 0 solid var(--faint); }
 .mf.tl { left: 0; top: 0; border-left-width: 1px; border-top-width: 1px; }
 .mf.tr { right: 0; top: 0; border-right-width: 1px; border-top-width: 1px; }
@@ -300,11 +328,12 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .map-scale i { display: block; width: 62px; height: 5px; border: 1px solid var(--dim); border-top: 0; }
 .node-tip {
   position: absolute; z-index: 8; pointer-events: none; opacity: 0;
-  transform: translate(14px, 14px); transition: opacity .15s;
-  background: rgba(15, 20, 25, .94); border: 1px solid var(--acid-dim);
-  padding: 6px 9px; min-width: 124px;
+  transform: translateY(3px); transition: opacity .15s, transform .15s;
+  background: #101820; border: 1px solid var(--acid-dim);
+  box-shadow: 0 2px 0 #060b0e, 0 5px 8px rgba(0, 0, 0, .35);
+  padding: 8px 10px; min-width: 124px;
 }
-.node-tip.show { opacity: 1; }
+.node-tip.show { opacity: 1; transform: none; }
 .node-tip b { display: block; font-size: 10px; letter-spacing: .14em; color: var(--ink); }
 .node-tip span { display: block; margin-top: 3px; font-family: var(--mono); font-size: 8px; letter-spacing: .14em; color: var(--acid-dim); }
 
@@ -312,8 +341,10 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .dock {
   position: absolute; left: 31.5vw; right: max(5.2vw, calc(var(--edge) + 14px)); bottom: calc(var(--edge) + 14px);
   height: var(--dockh); z-index: 22;
-  border: 1px solid var(--line); background: rgba(19, 26, 33, .82);
-  -webkit-backdrop-filter: blur(2px); backdrop-filter: blur(2px);
+  border: 1px solid rgba(236, 237, 237, .14);
+  border-top-color: var(--edge-light); border-bottom-color: var(--edge-dark);
+  background: linear-gradient(155deg, #1c2730, #131c24 65%);
+  box-shadow: 0 4px 0 #080e13, 0 5px 0 rgba(236, 237, 237, .07), 0 10px 14px rgba(0, 0, 0, .16);
   display: grid; grid-template-columns: clamp(136px, 12vw, 176px) 1fr;
   grid-template-rows: 1fr auto;
   padding: 14px 18px 10px;
@@ -327,11 +358,17 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .dock-meta .step { font-family: var(--mono); font-size: 8px; letter-spacing: .34em; color: var(--acid-dim); }
 .dock-meta .step-name { font-size: clamp(17px, 1.5vw, 21px); font-weight: 800; letter-spacing: .12em; color: var(--ink); margin-top: 4px; }
 .dock-meta .step-en { font-family: var(--mono); font-size: 7.5px; letter-spacing: .3em; color: var(--dim); }
-.dock-body { min-width: 0; display: flex; align-items: center; }
+.dock-body { min-width: 0; display: flex; align-items: center; position: relative; }
+.dock-body::before {
+  content: ""; position: absolute; inset: 4px -8px; pointer-events: none;
+  background: linear-gradient(rgba(6, 12, 17, .38), rgba(16, 24, 31, .12));
+  border-top: 1px solid rgba(0, 0, 0, .35); border-bottom: 1px solid rgba(236, 237, 237, .05);
+}
+.panel { position: relative; }
 .dock-hint {
   grid-column: 2; align-self: end; padding-top: 7px;
-  font-family: var(--mono); font-size: 8.5px; letter-spacing: .2em;
-  color: rgba(236, 237, 237, .52); text-transform: uppercase;
+  font-family: var(--mono); font-size: 10px; letter-spacing: .12em;
+  color: var(--text-support); text-transform: uppercase;
   display: flex; align-items: center; gap: 8px;
 }
 .dock-hint::before { content: ""; width: 14px; height: 1px; background: var(--faint); }
@@ -342,19 +379,25 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .dock[data-phase="access"] .p-access,
 .dock[data-phase="order"] .p-order,
 .dock[data-phase="close"] .p-close,
-.dock[data-phase="boot"] .p-boot { display: flex; animation: panelIn .28s ease-out; }
-@keyframes panelIn { from { opacity: 0; transform: translateY(5px); } }
+.dock[data-phase="boot"] .p-boot { display: flex; animation: panelIn .34s var(--ease-line); }
+@keyframes panelIn {
+  from { opacity: 0; clip-path: inset(0 0 100% 0); transform: translateY(4px); }
+  to { opacity: 1; clip-path: inset(0 -5px -5px -5px); transform: none; }
+}
 
 /* 按住接入：透明底 + 1px 边；hover 只改前景/边色 */
 .hold {
   position: relative; flex: none; width: clamp(220px, 19vw, 290px); height: 58px;
-  border: 1px solid var(--faint); background: transparent;
+  border: 1px solid var(--faint);
+  background: linear-gradient(160deg, var(--surface-top), var(--surface-bottom));
+  box-shadow: inset 0 1px 0 var(--edge-light), 0 3px 0 var(--edge-dark);
   display: flex; align-items: center; gap: 12px; padding: 0 14px;
-  transition: border-color .2s;
+  transition: border-color .2s, box-shadow .14s, translate .14s;
   overflow: hidden;
 }
 .hold:hover, .hold.active { border-color: var(--acid); }
 .hold:hover .hold-label b, .hold.active .hold-label b { color: var(--acid); }
+.hold.active { translate: 0 1px; box-shadow: inset 0 1px 3px rgba(0, 0, 0, .45), 0 1px 0 var(--edge-dark); }
 .hold.ok { border-color: var(--volt-mid); }
 .hold.err { border-color: var(--alert); animation: shake .3s ease; }
 @keyframes shake {
@@ -416,7 +459,9 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .key {
   height: 52px; min-width: 86px; padding: 0 14px;
   border: 1px solid var(--faint); display: flex; align-items: center; justify-content: center;
-  transition: border-color .2s, opacity .2s;
+  background: linear-gradient(160deg, var(--surface-top), var(--surface-bottom));
+  box-shadow: inset 0 1px 0 var(--edge-light), 0 3px 0 var(--edge-dark);
+  transition: border-color .2s, opacity .2s, box-shadow .14s, translate .14s;
 }
 .key .kb { display: flex; flex-direction: column; align-items: center; gap: 2px; }
 .key .kb b { font-size: 13px; letter-spacing: .22em; color: var(--ink); font-weight: 600; transition: color .2s; }
@@ -424,7 +469,10 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .key:not(:disabled):hover { border-color: var(--acid); }
 .key:not(:disabled):hover .kb b { color: var(--acid); }
 .key:disabled { opacity: .28; cursor: not-allowed; }
-.key.press { border-color: var(--acid); }
+.key.press, .key:not(:disabled):active {
+  border-color: var(--acid); translate: 0 1px;
+  box-shadow: inset 0 1px 3px rgba(0, 0, 0, .45), 0 1px 0 var(--edge-dark);
+}
 .key.settled { border-color: var(--volt-mid); }
 .key.settled .kb b { color: var(--volt); }
 
@@ -437,8 +485,10 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .brk-side.r b { color: var(--volt-mid); }
 .brk-track { position: relative; flex: 1; height: 44px; margin: 0 34px; }
 .brk-track::before {
-  content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 2px;
-  background: rgba(236, 237, 237, .16); transform: translateY(-50%);
+  content: ""; position: absolute; left: -8px; right: -8px; top: 50%; height: 12px;
+  background: #080e13; transform: translateY(-50%);
+  border-top: 1px solid #05090c; border-bottom: 1px solid rgba(236, 237, 237, .15);
+  box-shadow: inset 0 2px 3px rgba(0, 0, 0, .6);
 }
 .brk-fill {
   position: absolute; left: 0; top: 50%; height: 2px; width: 0%;
@@ -450,14 +500,15 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .brk-knob {
   position: absolute; top: 50%; left: 0%; transform: translate(-50%, -50%);
   width: 46px; height: 46px; border: 1px solid var(--acid-dim);
-  background: var(--bg2); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 3px;
+  background: linear-gradient(155deg, #34434e, #202b34 60%); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 5px;
+  box-shadow: inset 0 1px 0 rgba(236, 237, 237, .32), 0 4px 0 #070d12, 2px 6px 6px rgba(0, 0, 0, .3);
   cursor: grab; touch-action: none; z-index: 2;
-  transition: border-color .15s;
+  transition: border-color .15s, box-shadow .15s;
 }
 .brk-knob:hover, .brk-knob:focus-visible { border-color: var(--acid); }
-.brk-knob:active { cursor: grabbing; }
+.brk-knob:active, .brk-knob.dragging { cursor: grabbing; box-shadow: inset 0 1px 0 rgba(236, 237, 237, .24), 0 2px 0 #070d12, 1px 3px 3px rgba(0, 0, 0, .25); }
 .brk-knob i { width: 14px; height: 1px; background: var(--acid-dim); box-shadow: 0 3px 0 var(--acid-dim), 0 -3px 0 var(--acid-dim); }
-.brk-knob span { font-family: var(--mono); font-size: 6.5px; letter-spacing: .18em; color: var(--acid-dim); }
+.brk-knob span { font-family: var(--sans); font-size: 10px; letter-spacing: .12em; color: var(--acid); }
 .brk-knob.closed { border-color: var(--volt); }
 .brk-knob.closed i { background: var(--volt); box-shadow: 0 3px 0 var(--volt), 0 -3px 0 var(--volt); }
 .brk-knob.closed span { color: var(--volt); }
@@ -471,10 +522,11 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .boot-label { flex: none; display: flex; flex-direction: column; gap: 3px; }
 .boot-label b { font-size: 15px; letter-spacing: .18em; }
 .boot-label em { font-family: var(--mono); font-style: normal; font-size: 7.5px; letter-spacing: .24em; color: var(--dim); }
-.boot-bar { position: relative; flex: 1; height: 6px; background: rgba(236, 237, 237, .08); overflow: hidden; }
+.boot-bar { position: relative; flex: 1; height: 12px; background: #080e13; overflow: hidden; border: 1px solid rgba(0, 0, 0, .45); border-bottom-color: rgba(236, 237, 237, .16); box-shadow: inset 0 2px 3px rgba(0, 0, 0, .6); }
 .boot-bar i {
   position: absolute; left: 0; top: 0; bottom: 0; width: 0%;
-  background: var(--volt);
+  background: linear-gradient(180deg, #7af2c8, var(--volt) 55%, #0f8b71);
+  box-shadow: inset 0 1px 0 rgba(236, 237, 237, .38);
   transition: width .1s linear;
 }
 .boot-ticks {
@@ -490,7 +542,8 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
   position: absolute; right: 18px; top: -34px; z-index: 4;
   font-family: var(--mono); font-size: 9px; letter-spacing: .2em;
   padding: 6px 10px; border: 1px solid var(--alert); color: #ff9c8d;
-  background: rgba(15, 20, 25, .94); opacity: 0; transform: translateY(6px);
+  background: #111a22; opacity: 0; transform: translateY(4px);
+  box-shadow: 0 2px 0 #070d12, 0 5px 8px rgba(0, 0, 0, .3);
   transition: opacity .18s, transform .18s; pointer-events: none;
   text-transform: uppercase;
 }
@@ -507,7 +560,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 
 /* 扫描 / 颗粒 / 暗角 */
 .scan {
-  position: absolute; left: 0; right: 0; height: 170px; z-index: 30;
+  position: absolute; left: 0; right: 0; height: 170px; z-index: 7;
   pointer-events: none; mix-blend-mode: screen;
   background: linear-gradient(to bottom,
     transparent 0%, rgba(251, 251, 70, .02) 38%, rgba(251, 251, 70, .045) 50%,
@@ -521,7 +574,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 @keyframes scanMove { from { transform: translateY(-190px); } to { transform: translateY(100vh); } }
 
 .grain {
-  position: absolute; inset: 0; z-index: 31; pointer-events: none; opacity: .5;
+  position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: .28;
   background:
     repeating-linear-gradient(to bottom, rgba(255, 255, 255, .025) 0 1px, transparent 1px 3px),
     radial-gradient(120% 90% at 50% 45%, transparent 46%, rgba(0, 0, 0, .62) 100%);
@@ -534,8 +587,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .hush { position: absolute; inset: 0; background: #000; z-index: 40; opacity: 0; pointer-events: none; }
 .hush.go { animation: hushIn .2s ease-in forwards; }
 @keyframes hushIn { to { opacity: .9; } }
-#stage.punch { animation: punch .34s cubic-bezier(.2, .9, .3, 1); }
-@keyframes punch { 0% { transform: scale(1); } 15% { transform: scale(1.028); } 100% { transform: scale(1); } }
+/* 机架和字始终稳定；只有当前面板内容揭示，不做整屏推拉。 */
 
 /* 完成页 */
 .done {
@@ -600,6 +652,9 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
   .plate-txt span { display: none; }
   .idline { display: none; }
   .dock-meta .step-en { letter-spacing: .18em; }
+  .order-t { font-size: 9px; letter-spacing: .04em; white-space: normal; line-height: 1.4; }
+  .order-echo { font-size: 8px; letter-spacing: .04em; white-space: normal; line-height: 1.4; }
+  .order-h { font-size: 8px; letter-spacing: .1em; }
 }
 @media (max-height: 780px) {
   .leftcol { top: 9vh; }
@@ -625,7 +680,11 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 
 /* 动效降级：保留状态与交互，去掉位移/扫描 */
 @media (prefers-reduced-motion: reduce) {
-  .scan { animation: none !important; }
+  .scan { display: none !important; }
+  .panel, .node-tip, .toast, .hold, .key, .done-inner { animation: none !important; transition: none !important; translate: none !important; }
+  .panel { clip-path: none !important; transform: none !important; }
+  .done-inner { transform: none !important; }
+  .rail .fill, .boot-bar i { transition: none !important; }
   .kicker, .title .sc, .title .cn, .title .sub, .title .rule, .title .spec, .meta, .tele, .log, .readout {
     animation: none !important; opacity: 1 !important; transform: none !important; filter: none !important;
   }

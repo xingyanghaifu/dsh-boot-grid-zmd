@@ -101,3 +101,4 @@ await click('#doneCta')
 await sleep(400)
 console.log('errors:', errors.length ? errors : 'none')
 ws.close()
+if (errors.length) process.exitCode = 1
