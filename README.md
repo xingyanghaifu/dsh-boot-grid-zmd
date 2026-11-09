@@ -38,7 +38,10 @@ start "dsh-boot-grid-zmd/assets/index.html?auto=1" # 自动演示（约 16 秒�
 **同一时间只应有一个启动屏插件生效。** 如果已经装着 `dsh-boot-grid`、`dsh-boot-animation` 等其他启动屏，先从 profile 的 `bundles` 里去掉，否则两层全屏会互相遮挡。
 
 ```bash
-# CLI：把本地目录 link 进 profile
+# 从 GitHub 安装（推荐）
+dsh plugin add github:xingyanghaifu/dsh-boot-grid-zmd
+
+# 或本地 link 开发
 dsh plugin add link:E:/path/to/dsh-boot-grid-zmd
 ```
 
