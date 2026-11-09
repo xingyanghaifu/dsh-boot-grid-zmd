@@ -1,0 +1,9 @@
+# dsh-boot-grid-zmd bundle layer.
+#
+# 这一行把插件挂进 profile。想关掉它在开机时出现，把这一行删掉或改成
+# enabled: false 即可 —— 卸载插件本身不是必需的。
+# 注意：同一时间只应有一个启动屏插件生效。
+
+- insert:
+    - id: boot-grid-zmd
+      name: dsh-boot-grid-zmd

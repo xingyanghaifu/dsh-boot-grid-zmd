@@ -1,0 +1,186 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>国家电网 · 调度控制中心启动序列</title>
+<link rel="stylesheet" href="boot.css">
+</head>
+<body>
+<div id="stage" data-phase="access">
+
+  <canvas id="bg" aria-hidden="true"></canvas>
+  <div class="grid" aria-hidden="true"></div>
+  <div class="grid fine" aria-hidden="true"></div>
+  <div class="rail" aria-hidden="true"><div class="fill" id="fill"></div><div class="ticks"></div></div>
+
+  <div class="mapwrap" id="mapwrap" aria-hidden="true">
+    <canvas id="map"></canvas>
+    <div class="map-frame">
+      <i class="mf tl"></i><i class="mf tr"></i><i class="mf bl"></i><i class="mf br"></i>
+    </div>
+    <div class="map-grid-caption">GRID TOPOLOGY · 50 Hz · SIMULATED</div>
+    <div class="map-coord" id="mapCoord">N 35.0°  E 105.0°</div>
+    <div class="map-scale"><span>0</span><i></i><span>1000 km</span></div>
+    <div class="node-tip" id="nodeTip"><b></b><span></span></div>
+  </div>
+
+  <div class="frame" aria-hidden="true">
+    <i class="ft tl"></i><i class="ft tr"></i><i class="ft bl"></i><i class="ft br"></i>
+  </div>
+  <div class="hair t" aria-hidden="true"></div>
+  <div class="hair b" aria-hidden="true"></div>
+  <div class="hazard top" aria-hidden="true"></div>
+  <div class="hazard bot" aria-hidden="true"></div>
+
+  <div class="meta top" aria-hidden="true">
+    <div class="brandline"><b>国家电网有限公司</b><span class="sep"></span><span class="en">STATE GRID CORPORATION OF CHINA</span></div>
+    <span class="grow"></span>
+    <span class="tag">DSH TERMINAL <b>SC-01</b></span><span class="sep"></span>
+    <span>UTC <b id="clock">--:--:--</b></span><span class="sep"></span>
+    <span class="mode" id="modeChip">AUTO DEMO</span>
+  </div>
+
+  <div class="leftcol">
+  <div class="plate" id="plate">
+    <img src="logo-mark.png" alt="国家电网有限公司标识">
+    <div class="plate-txt">
+      <b>国家电网有限公司</b>
+      <span>STATE GRID CORPORATION OF CHINA</span>
+    </div>
+  </div>
+
+  <header class="title" id="title">
+    <div class="kicker">STATE GRID <i>//</i> DISPATCH TERMINAL</div>
+    <div class="sc">SC<i>–</i>01</div>
+    <div class="cn">电网调度控制中心</div>
+    <div class="sub">DISPATCH &amp; CONTROL CENTER</div>
+    <div class="rule" aria-hidden="true"></div>
+    <div class="spec"><span>50 Hz</span><span>220 / 500 / ±800 kV</span><span>SEC-3</span></div>
+  </header>
+
+  <aside class="tele" id="tele">
+    <div class="head">GRID TELEMETRY <em>SIM</em></div>
+    <div class="trow"><span class="k">频率 FREQ</span><span class="v" id="freq">----</span><span class="u">Hz</span></div>
+    <div class="trow"><span class="k">电压 VOLT</span><span class="v" id="volt">0.0</span><span class="u">kV</span></div>
+    <div class="trow"><span class="k">有功 ACTIVE</span><span class="v" id="act">0.00</span><span class="u">GW</span></div>
+    <div class="trow sub"><span class="k">状态 STATE</span><span class="v" id="state">STANDBY</span><span class="u"></span></div>
+    <canvas id="wave" width="240" height="50" aria-hidden="true"></canvas>
+  </aside>
+
+  <div class="log" id="log" role="log" aria-live="polite" aria-label="启动日志"></div>
+
+  <div class="readout" id="readout" aria-hidden="true">
+    <div class="pct"><span id="pct">00</span><small>%</small></div>
+    <div class="stat"><i class="dot"></i><span id="phaseText">待接入 STANDBY</span></div>
+    <div class="seq">BOOT SEQUENCE <b>07</b></div>
+  </div>
+  </div>
+
+  <div class="meta bottom">
+    <span class="warn">非官方演示</span><span class="sep"></span>
+    <span>非实时调度数据 · 标识归权利人所有</span>
+    <span class="grow"></span>
+    <span>STATE GRID CORP. <i>·</i> DSH BOOT SEQUENCE</span><span class="sep"></span>
+    <button class="chip" id="skipBtn" type="button">跳过 ESC</button>
+    <button class="chip" id="soundChip" type="button">音效 开</button>
+  </div>
+
+  <section class="dock" id="dock" data-phase="access">
+    <div class="dock-meta">
+      <div class="step" id="stepNo">STEP 01</div>
+      <div class="step-name" id="stepName">接入核验</div>
+      <div class="step-en" id="stepEn">ACCESS VERIFICATION</div>
+    </div>
+
+    <div class="dock-body">
+
+      <div class="panel p-access">
+        <button id="holdBtn" class="hold" type="button" aria-label="按住接入，持续 1.2 秒">
+          <span class="hold-arc" aria-hidden="true">
+            <svg viewBox="0 0 44 44"><circle class="track" cx="22" cy="22" r="19"/><circle class="prog" id="holdArc" cx="22" cy="22" r="19"/></svg>
+          </span>
+          <span class="hold-fill" id="holdFill" aria-hidden="true"></span>
+          <span class="hold-label"><b>按住接入</b><em>HOLD TO CONNECT</em></span>
+          <span class="hold-t"><b id="holdT">0.00</b><em>s</em></span>
+        </button>
+        <div class="idline">
+          <div><span class="k">调度员 OPERATOR</span><span class="v">SG-DISPATCH-07</span></div>
+          <div><span class="k">权限 LEVEL</span><span class="v">3</span></div>
+          <div><span class="k">终端 TERMINAL</span><span class="v">SC-01</span></div>
+        </div>
+      </div>
+
+      <div class="panel p-order">
+        <div class="order">
+          <div class="order-h">调度指令 <em id="orderMeta">DISPATCH ORDER</em></div>
+          <div class="order-t" id="orderText" aria-label="调度指令内容"></div>
+          <div class="order-echo" id="orderEcho" aria-hidden="true"></div>
+        </div>
+        <div class="order-actions">
+          <button id="repeatBtn" class="key" type="button" disabled><span class="kb"><b>复诵</b><em>READBACK</em></span></button>
+          <button id="execBtn" class="key" type="button" disabled><span class="kb"><b>执行</b><em>EXECUTE</em></span></button>
+        </div>
+      </div>
+
+      <div class="panel p-close">
+        <div class="brk">
+          <div class="brk-side"><b>分</b><em>OPEN</em></div>
+          <div class="brk-track" id="brkTrack">
+            <div class="brk-ticks" aria-hidden="true"><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i><i></i></div>
+            <div class="brk-fill" id="brkFill"></div>
+            <button class="brk-knob" id="brkKnob" type="button" role="slider"
+              aria-label="合闸把手" aria-valuemin="0" aria-valuemax="100" aria-valuenow="0">
+              <i></i><span>合闸</span>
+            </button>
+          </div>
+          <div class="brk-side r"><b>合</b><em>CLOSED</em></div>
+          <div class="brk-read"><b id="kv">0.0</b><em>kV</em><span>线路电压 LINE VOLTAGE</span></div>
+        </div>
+      </div>
+
+      <div class="panel p-boot">
+        <div class="boot-label"><b>扫描进度</b><em>GRID SCAN</em></div>
+        <div class="boot-bar"><i id="bootFill"></i><span class="boot-ticks" aria-hidden="true"></span></div>
+        <div class="boot-pct"><b id="bootPct">0</b><em>%</em></div>
+      </div>
+
+    </div>
+
+    <div class="dock-hint" id="dockHint">按住按钮 1.2 秒后松开</div>
+    <div class="toast" id="toast" role="status" aria-live="assertive"></div>
+  </section>
+
+  <div class="scan" aria-hidden="true"></div>
+  <div class="sweep" id="sweep" aria-hidden="true"></div>
+  <div class="hush" id="hush" aria-hidden="true"></div>
+  <div class="grain" aria-hidden="true"></div>
+
+  <div class="done" id="done">
+    <div class="done-inner">
+      <div class="done-plate">
+        <img src="logo-mark.png" alt="国家电网有限公司标识">
+        <div><b>国家电网有限公司</b><span>STATE GRID CORPORATION OF CHINA</span></div>
+      </div>
+      <div class="done-kicker">DISPATCH TERMINAL · SC-01 · DEEPSEEK HARNESS</div>
+      <div class="done-title">系统已启动</div>
+      <div class="done-en">SYSTEM ONLINE</div>
+      <div class="done-rows">
+        <div><span>调度员</span><b>SG-DISPATCH-07</b></div>
+        <div><span>权限等级</span><b>LEVEL 3</b></div>
+        <div><span>并网状态</span><b>CLOSED</b></div>
+      </div>
+      <div class="done-copy">人民电业为人民</div>
+      <div class="done-stat">经营区域覆盖 26 个省（自治区、直辖市） · 供电范围占国土面积 88% · 供电人口超 11 亿（2024）</div>
+      <button class="done-cta" id="doneCta" type="button">点击任意处进入 <em>ENTER TERMINAL</em></button>
+      <div class="done-auto" id="doneAuto"></div>
+      <div class="done-note">非官方演示 · 非实时调度数据 · 标识归权利人所有</div>
+    </div>
+  </div>
+
+</div>
+
+<script src="china-data.js"></script>
+<script src="boot.js"></script>
+</body>
+</html>

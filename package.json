@@ -1,0 +1,27 @@
+{
+  "name": "dsh-boot-grid-zmd",
+  "version": "0.1.0",
+  "private": true,
+  "description": "国家电网 × 终末地（ZMD）风格 DSH 启动动画：按住接入、调度指令复诵、拖动合闸、全网扫描",
+  "license": "MIT",
+  "type": "module",
+  "main": "entry.js",
+  "exports": {
+    ".": "./entry.js",
+    "./cordis.patch.yml": "./cordis.patch.yml",
+    "./package.json": "./package.json"
+  },
+  "files": [
+    "assets",
+    "cordis.patch.yml",
+    "docs",
+    "entry.js",
+    "package.json",
+    "README.md"
+  ],
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  }
+}
