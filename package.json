@@ -2,7 +2,7 @@
   "name": "dsh-boot-grid-zmd",
   "version": "0.1.0",
   "private": true,
-  "description": "国家电网 × 终末地（ZMD）风格 DSH 启动动画：按住接入、调度指令复诵、拖动合闸、全网扫描",
+  "description": "国家电网 × 终末地（ZMD）风格 DSH 启动动画：按住接入、调度指令复诵、拖动合闸、全网扫描，支持按定位接入省级电网",
   "license": "MIT",
   "type": "module",
   "main": "entry.js",

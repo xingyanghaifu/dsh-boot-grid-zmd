@@ -61,7 +61,7 @@ try {
   // Reduced-motion keyboard path and stable idle canvas.
   await call('Emulation.setEmulatedMedia',{features:[{name:'prefers-reduced-motion',value:'reduce'}]});await nav()
   const stable=await ev(`(async()=>{const cv=document.getElementById('map'),a=cv.toDataURL();await new Promise(r=>setTimeout(r,220));return a===cv.toDataURL()})()`)
-  assert.equal(stable,true);assert.equal(await ev('getComputedStyle(document.querySelector(".scan")).display'),'none')
+  assert.equal(stable,true);assert.equal(await ev('document.querySelector(".scan")===null'),true)
   await ev('document.getElementById("holdBtn").focus()')
   await call('Input.dispatchKeyEvent',{type:'keyDown',key:' ',code:'Space',windowsVirtualKeyCode:32,text:' '});await wait(1300)
   await call('Input.dispatchKeyEvent',{type:'keyUp',key:' ',code:'Space',windowsVirtualKeyCode:32})
@@ -109,6 +109,7 @@ try {
   await nav();await ev(`document.cookie='dsh_boot_grid_zmd_mode=manual; path=/; max-age=3600'`);await ev(screen)
   await until('!!document.querySelector("[data-dsh-boot-grid-zmd] iframe")')
   assert.match(await ev('document.querySelector("[data-dsh-boot-grid-zmd] iframe").getAttribute("src")'),/auto=0/)
+  assert.match(await ev('document.querySelector("[data-dsh-boot-grid-zmd] iframe").getAttribute("allow")'),/geolocation/)
   record('overlay defaults to saved manual mode',true)
   await key('Escape','Escape',27);await until('!document.querySelector("[data-dsh-boot-grid-zmd]")');record('overlay Escape removes iframe',true)
   await nav();await ev(`document.cookie='dsh_boot_grid_zmd_mode=auto; path=/; max-age=3600'`);await ev(screen)

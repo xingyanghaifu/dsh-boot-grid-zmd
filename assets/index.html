@@ -23,6 +23,7 @@
     <div class="map-grid-caption">GRID TOPOLOGY · 50 Hz · SIMULATED</div>
     <div class="map-coord" id="mapCoord">N 35.0°  E 105.0°</div>
     <div class="map-scale"><span>0</span><i></i><span>1000 km</span></div>
+    <div class="map-region" id="mapRegion">全国视图 · NATIONAL</div>
     <div class="node-tip" id="nodeTip"><b></b><span></span></div>
   </div>
 
@@ -78,11 +79,14 @@
   </div>
   </div>
 
+  <p class="sr-only" id="geoStatus" role="status" aria-live="polite"></p>
+
   <div class="meta bottom">
     <span class="warn">非官方演示</span><span class="sep"></span>
     <span>非实时调度数据 · 标识归权利人所有</span>
     <span class="grow"></span>
     <span class="tagline">STATE GRID CORP. <i>·</i> DSH BOOT SEQUENCE</span><span class="sep tagline-sep"></span>
+    <button class="chip geo" id="geoBtn" type="button" aria-label="定位：关">定位 关</button>
     <button class="chip mode" id="modeBtn" type="button" aria-label="播放模式：手动">模式 手动</button>
     <button class="chip" id="skipBtn" type="button">跳过 ESC</button>
     <button class="chip" id="soundChip" type="button">音效 开</button>
@@ -109,7 +113,7 @@
         <div class="idline">
           <div><span class="k">调度员 OPERATOR</span><span class="v">SG-DISPATCH-07</span></div>
           <div><span class="k">权限 LEVEL</span><span class="v">3</span></div>
-          <div><span class="k">终端 TERMINAL</span><span class="v">SC-01</span></div>
+          <div><span class="k">接入区域 REGION</span><span class="v" id="regionName">全国</span></div>
         </div>
       </div>
 
@@ -153,7 +157,6 @@
     <div class="toast" id="toast" role="status" aria-live="assertive"></div>
   </section>
 
-  <div class="scan" aria-hidden="true"></div>
   <div class="sweep" id="sweep" aria-hidden="true"></div>
   <div class="hush" id="hush" aria-hidden="true"></div>
   <div class="grain" aria-hidden="true"></div>

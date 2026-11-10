@@ -14,9 +14,18 @@
   const Q = new URLSearchParams(location.search);
   const AUTO = Q.get('auto') === '1' || Q.get('demo') === '1';
   const MODE_COOKIE = 'dsh_boot_grid_zmd_mode';
-  function writeMode(mode) {
-    try { document.cookie = `${MODE_COOKIE}=${mode}; path=/; max-age=31536000; SameSite=Lax`; } catch (e) { /* file:// 或无 cookie 环境 */ }
+  const GEO_COOKIE = 'dsh_boot_grid_zmd_geo';
+  const PROVINCE = window.__PROVINCE_META__ || { rings: [], provinces: [] };
+  function readCookie(name) {
+    try {
+      const found = document.cookie.match(new RegExp('(?:^|;\\s*)' + name + '=([^;]*)'));
+      return found ? decodeURIComponent(found[1]) : null;
+    } catch (e) { return null; }
   }
+  function writeCookie(name, value) {
+    try { document.cookie = `${name}=${encodeURIComponent(value)}; path=/; max-age=31536000; SameSite=Lax`; } catch (e) { /* file:// 或无 cookie 环境 */ }
+  }
+  function writeMode(mode) { writeCookie(MODE_COOKIE, mode); }
   const JUMP = (Q.get('jump') || '').toLowerCase();
   const IN_FRAME = (() => { try { return window.top !== window.self; } catch (e) { return true; } })();
   const REDUCED = window.matchMedia('(prefers-reduced-motion: reduce)').matches;
@@ -40,6 +49,11 @@
     reveal: 0, energize: 0,
     freq: 0, volt: 0, act: 0,
     hoverNode: -1,
+    geo: readCookie(GEO_COOKIE) === '1',
+    geoState: 'idle',
+    region: null,
+    marker: null,
+    highlightRings: [],
     sound: true, audio: null, hum: null, userGesture: false,
     logN: 0, gen: 0, left: false,
   };
@@ -69,6 +83,7 @@
     bootFill: $('bootFill'), bootPct: $('bootPct'), dockHint: $('dockHint'),
     toast: $('toast'), skip: $('skipBtn'), sweep: $('sweep'), hush: $('hush'),
     done: $('done'), doneCta: $('doneCta'), doneAuto: $('doneAuto'), sound: $('soundChip'), modeBtn: $('modeBtn'),
+    geoBtn: $('geoBtn'), regionName: $('regionName'), mapRegion: $('mapRegion'), geoStatus: $('geoStatus'),
     mapCoord: $('mapCoord'), nodeTip: $('nodeTip'), wave: $('wave'),
   };
 
@@ -652,6 +667,118 @@
     setMode('manual');
   }
 
+  /* ============================== 定位 / 省级电网 ============================== */
+  function distanceKm(lat1, lon1, lat2, lon2) {
+    const rad = Math.PI / 180;
+    const dLat = (lat2 - lat1) * rad, dLon = (lon2 - lon1) * rad;
+    const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * rad) * Math.cos(lat2 * rad) * Math.sin(dLon / 2) ** 2;
+    return 6371 * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  }
+  function pointInRing(x, y, ring) {
+    let inside = false;
+    for (let i = 0, j = ring.length - 2; i < ring.length; j = i, i += 2) {
+      const xi = ring[i], yi = ring[i + 1], xj = ring[j], yj = ring[j + 1];
+      if (((yi > y) !== (yj > y)) && (x < (xj - xi) * (y - yi) / (yj - yi) + xi)) inside = !inside;
+    }
+    return inside;
+  }
+  function findProvince(lat, lon) {
+    if (!CHINA || !PROVINCE.provinces.length) return null;
+    const nx = (lon - 72) / 65 * 1000;
+    const ny = (55 - lat) / 40 * 1000;
+    if (PROVINCE.rings.length === CHINA.provinces.length) {
+      for (let i = 0; i < CHINA.provinces.length; i++) {
+        const b = ringBoxes[i];
+        if (!b || nx < b[0] || nx > b[2] || ny < b[1] || ny > b[3]) continue;
+        if (!pointInRing(nx, ny, CHINA.provinces[i])) continue;
+        const name = PROVINCE.rings[i];
+        if (!name) continue;
+        const found = PROVINCE.provinces.find((p) => p.isProvince && p.name === name);
+        if (found) return found;
+      }
+    }
+    let best = null, bestDistance = Infinity;
+    for (const p of PROVINCE.provinces) {
+      if (!p.isProvince || !p.center) continue;
+      const d = distanceKm(lat, lon, p.center[1], p.center[0]);
+      if (d < bestDistance) { bestDistance = d; best = p; }
+    }
+    return bestDistance <= 350 ? best : null;
+  }
+  function syncGeo() {
+    const pending = S.geoState === 'pending';
+    el.geoBtn.textContent = pending ? '定位中' : (S.geo ? '定位 开' : '定位 关');
+    el.geoBtn.classList.toggle('on', S.geo && !pending);
+    el.geoBtn.setAttribute('aria-label', S.geo ? '定位：开，点击关闭' : '定位：关，点击开启');
+    el.geoBtn.title = S.geo ? '已开启定位；坐标只在本机使用，不上传' : '开启后按位置接入省级电网；坐标只在本机使用，不上传';
+  }
+  function clearRegion(message) {
+    geoSeq++;
+    S.region = null;
+    S.marker = null;
+    S.highlightRings = [];
+    el.regionName.textContent = '全国';
+    el.mapRegion.textContent = '全国视图 · NATIONAL';
+    el.mapRegion.classList.remove('on');
+    el.geoStatus.textContent = message ? '定位不可用，使用全国视图' : '定位关闭，使用全国视图';
+    if (message) log(message);
+  }
+  function applyLocation(lat, lon) {
+    const p = findProvince(lat, lon);
+    if (!p) {
+      clearRegion('定位不在省级电网范围 · 全国视图');
+      S.geoState = 'ok'; syncGeo();
+      toast('定位不在省级电网范围 · 使用全国视图');
+      return;
+    }
+    const idText = p.inSG ? (p.partial ? `${p.short}（蒙东/蒙西）` : p.short) : '非国网经营区';
+    const full = p.inSG ? (p.partial ? `${p.short} · 蒙东/蒙西以供电营业区为准` : `${p.short}电网`) : '非国网经营区 · 全国视图';
+    S.region = { ...p, lat, lon };
+    S.marker = [lon, lat];
+    S.highlightRings = p.inSG ? PROVINCE.rings.map((n, i) => (n === p.name ? i : -1)).filter((i) => i >= 0) : [];
+    el.regionName.textContent = idText;
+    el.mapRegion.textContent = full;
+    el.mapRegion.classList.toggle('on', p.inSG);
+    el.geoStatus.textContent = `定位接入：${full}`;
+    S.geoState = 'ok'; S.geo = true;
+    writeCookie(GEO_COOKIE, '1');
+    syncGeo();
+    log(`定位接入 · ${full}`, p.inSG ? 'ok' : '');
+  }
+  function requestGeo() {
+    if (!navigator.geolocation) {
+      S.geo = false; S.geoState = 'denied';
+      writeCookie(GEO_COOKIE, '0'); syncGeo(); clearRegion();
+      toast('浏览器不支持定位 · 使用全国视图');
+      return;
+    }
+    const seq = ++geoSeq;
+    S.geoState = 'pending'; syncGeo();
+    navigator.geolocation.getCurrentPosition(
+      (pos) => { if (seq === geoSeq) applyLocation(pos.coords.latitude, pos.coords.longitude); },
+      () => {
+        if (seq !== geoSeq) return;
+        S.geo = false; S.geoState = 'denied';
+        writeCookie(GEO_COOKIE, '0'); syncGeo();
+        clearRegion('定位不可用 · 使用全国视图');
+        toast('定位不可用 · 使用全国视图');
+      },
+      { timeout: 8000, maximumAge: 600000 }
+    );
+  }
+  function setGeo(on) {
+    if (on) {
+      S.geo = true; S.geoState = 'pending';
+      writeCookie(GEO_COOKIE, '1'); syncGeo();
+      requestGeo();
+    } else {
+      S.geo = false; S.geoState = 'idle';
+      writeCookie(GEO_COOKIE, '0'); syncGeo();
+      clearRegion();
+    }
+    blip(620, 0.05, 'square', 0.012);
+  }
+
   /* ============================== 地图 ============================== */
   const CHINA = window.__CHINA__ || null;
   const mapWrap = $('mapwrap');
@@ -664,8 +791,8 @@
   const waveCv = el.wave;
   const waveCtx = waveCv.getContext('2d');
 
-  let mapW = 0, mapH = 0, mapFit = null, mapStatic = null, dotsCanvas = null, hotDotsCanvas = null, nodes = [], linePaths = [];
-  let mapLift = 12, mapBounds = null;
+  let mapW = 0, mapH = 0, mapFit = null, mapStatic = null, dotsCanvas = null, hotDotsCanvas = null, hotBox = null, nodes = [], linePaths = [];
+  let mapLift = 12, mapBounds = null, provincePaths = [], ringBoxes = [], geoSeq = 0;
   let bgW = 0, bgH = 0;
 
   const UHV = [
@@ -789,6 +916,17 @@
     c.lineJoin = 'round'; c.lineCap = 'round'; c.lineWidth = 1;
     c.strokeStyle = 'rgba(236,237,237,.2)';
     for (const path of rings) c.stroke(path);
+    provincePaths = rings;
+    ringBoxes = CHINA.provinces.map((ring) => {
+      let x0 = Infinity, y0 = Infinity, x1 = -Infinity, y1 = -Infinity;
+      for (let i = 0; i < ring.length; i += 2) {
+        if (ring[i] < x0) x0 = ring[i];
+        if (ring[i] > x1) x1 = ring[i];
+        if (ring[i + 1] < y0) y0 = ring[i + 1];
+        if (ring[i + 1] > y1) y1 = ring[i + 1];
+      }
+      return [x0, y0, x1, y1];
+    });
 
     mapBounds = { minX: 26, maxX: mapW - 26 };
 
@@ -798,19 +936,34 @@
     dotsCanvas.width = mapCv.width; dotsCanvas.height = mapCv.height;
     const d = dotsCanvas.getContext('2d');
     d.setTransform(DPR, 0, 0, DPR, 0, 0);
-    hotDotsCanvas = document.createElement('canvas');
-    hotDotsCanvas.width = mapCv.width; hotDotsCanvas.height = mapCv.height;
-    const hd = hotDotsCanvas.getContext('2d');
-    hd.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const hotPoints = [];
     for (let i = 0; i < CHINA.dots.length; i += 3) {
       const p = toXY(CHINA.dots[i], CHINA.dots[i + 1]);
       if (p[0] < 0 || p[0] > mapW || p[1] < 0 || p[1] > mapH) continue;
       const w = CHINA.dots[i + 2];
       d.fillStyle = `rgba(236,237,237,${(.24 + w * .24).toFixed(3)})`;
       d.fillRect(p[0], p[1], .5 + w * .55, .5 + w * .55);
-      if (w > .55) {
+      if (w > .55) hotPoints.push([p[0], p[1], w]);
+    }
+    // 热点只占东部一小块，裁剪后再上传，避免逐帧绘制一张全屏透明图。
+    if (hotPoints.length) {
+      let hx0 = Infinity, hy0 = Infinity, hx1 = -Infinity, hy1 = -Infinity;
+      for (const [x, y, w] of hotPoints) {
+        hx0 = Math.min(hx0, x); hy0 = Math.min(hy0, y);
+        hx1 = Math.max(hx1, x + .6 + w * .7); hy1 = Math.max(hy1, y + .6 + w * .7);
+      }
+      const pad = 2;
+      hx0 -= pad; hy0 -= pad; hx1 += pad; hy1 += pad;
+      hotBox = { x: hx0, y: hy0, w: hx1 - hx0, h: hy1 - hy0 };
+      hotDotsCanvas = document.createElement('canvas');
+      hotDotsCanvas.width = Math.max(1, Math.ceil(hotBox.w * DPR));
+      hotDotsCanvas.height = Math.max(1, Math.ceil(hotBox.h * DPR));
+      const hd = hotDotsCanvas.getContext('2d');
+      hd.setTransform(DPR, 0, 0, DPR, 0, 0);
+      hd.translate(-hx0, -hy0);
+      for (const [x, y, w] of hotPoints) {
         hd.fillStyle = `rgba(55,214,174,${(.3 + w * .3).toFixed(3)})`;
-        hd.fillRect(p[0], p[1], .6 + w * .7, .6 + w * .7);
+        hd.fillRect(x, y, .6 + w * .7, .6 + w * .7);
       }
     }
 
@@ -890,11 +1043,25 @@
       ctx.save();
       ctx.beginPath(); ctx.rect(0, 0, sx, mapH); ctx.clip();
       ctx.drawImage(dotsCanvas, 0, 0, mapW, mapH);
-      if (energy > .5) {
+      if (energy > .5 && hotDotsCanvas && hotBox) {
         ctx.globalAlpha = clamp((energy - .5) / .3, 0, 1);
-        ctx.drawImage(hotDotsCanvas, 0, 0, mapW, mapH);
+        ctx.drawImage(hotDotsCanvas, hotBox.x, hotBox.y, hotBox.w, hotBox.h);
       }
       ctx.restore();
+    }
+
+    // 定位到的省级电网：填充弱、描边清楚；非国网经营区不填充。
+    if (S.highlightRings.length) {
+      const tone = energy > .5 ? '55,214,174' : '251,251,70';
+      for (const i of S.highlightRings) {
+        const path = provincePaths[i];
+        if (!path) continue;
+        ctx.fillStyle = `rgba(${tone},.055)`;
+        ctx.fill(path);
+        ctx.strokeStyle = `rgba(${tone},.68)`;
+        ctx.lineWidth = 1;
+        ctx.stroke(path);
+      }
     }
 
     // 高度由通电阶段一次建立：地表灰底稿保持不动，绿线路抬至节点顶面附近。
@@ -960,6 +1127,21 @@
       }
     }
 
+    // 实际坐标标记：只画十字与方框，不加光晕。
+    if (S.region) {
+      const [mx, my] = project(S.region.lon, S.region.lat);
+      const tone = S.region.inSG ? (energy > .5 ? '55,214,174' : '251,251,70') : '236,237,237';
+      ctx.strokeStyle = `rgba(${tone},.9)`;
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      ctx.moveTo(mx - 9, my); ctx.lineTo(mx - 3, my);
+      ctx.moveTo(mx + 3, my); ctx.lineTo(mx + 9, my);
+      ctx.moveTo(mx, my - 9); ctx.lineTo(mx, my - 3);
+      ctx.moveTo(mx, my + 3); ctx.lineTo(mx, my + 9);
+      ctx.stroke();
+      ctx.strokeRect(mx - 3.5, my - 3.5, 7, 7);
+    }
+
     if (!booting) {
       // 细节：图上角标尺
       ctx.strokeStyle = 'rgba(236,238,233,.18)';
@@ -999,7 +1181,7 @@
           if (a) bgCtx.lineTo(x, y); else bgCtx.moveTo(x, y);
         }
         bgCtx.closePath();
-        const alpha = 0.02 + 0.016 * (0.5 + 0.5 * Math.sin(r * .5 + t * .25));
+        const alpha = 0.010 + 0.008 * (0.5 + 0.5 * Math.sin(r * .5 + t * .25));
         bgCtx.strokeStyle = `rgba(236,238,233,${alpha.toFixed(3)})`;
         bgCtx.stroke();
       }
@@ -1114,7 +1296,6 @@
     if (S.phase === 'done') return;
     const key = `${S.phase}:${S.hold.toFixed(2)}:${S.brk.toFixed(2)}:${Math.floor(S.reveal * 4)}:${S.hoverNode}:${mapW}:${mapH}`;
     if (!REDUCED || key !== reducedFrame) {
-      drawBg(REDUCED ? 0 : now);
       drawMap(REDUCED ? 0 : now);
       drawWave(REDUCED ? 0 : now);
       reducedFrame = key;
@@ -1125,7 +1306,9 @@
 
   /* ============================== 初始化 ============================== */
   function resizeAll() {
+    // 背景等高线只画一次，并用半分辨率 backing store；它只是氛围层，不值得整屏逐帧合成。
     const b = fitCanvas(bgCv, bgCtx); bgW = b.w; bgH = b.h;
+    drawBg(0); // 背景等高线只画一次；每帧重绘 2500 段线没有收益。
     buildMap();
     nodesNeedIndex();
     const wr = el.wave.getBoundingClientRect();
@@ -1186,6 +1369,11 @@
       blip(760, 0.05, 'square', 0.012);
     });
 
+    el.geoBtn.addEventListener('click', (ev) => {
+      ev.stopPropagation();
+      setGeo(!S.geo);
+    });
+
     document.addEventListener('keydown', (ev) => {
       if (ev.key === 'Escape') { ev.preventDefault(); skipAll(); return; }
       if (S.done && (ev.key === 'Enter' || ev.key === ' ')) { ev.preventDefault(); leave(); }
@@ -1193,7 +1381,7 @@
 
     const wake = (ev) => {
       const t = ev.target;
-      if (t && t.closest && (t.closest('#modeBtn') || t.closest('#soundChip'))) return;
+      if (t && t.closest && (t.closest('#modeBtn') || t.closest('#soundChip') || t.closest('#geoBtn'))) return;
       S.userGesture = true;
       if (S.auto) manualTakeover();
     };
@@ -1248,12 +1436,14 @@
     setProgress(0);
     updateTelemetry();
     syncMode();
+    syncGeo();
     log('DSH TERMINAL SC-01 · 电源接通');
     log('等待调度员接入 · STANDBY');
     requestAnimationFrame(loop);
 
     if (JUMP) { jumpTo(JUMP); return; }
     if (S.auto) autoAt(autoHoldRun, 1100);
+    if (S.geo) requestGeo();
     // 通知宿主：动画已起来，可以撤掉载入看门狗（页面崩了就不会发这条）
     if (IN_FRAME) { try { window.parent.postMessage('boot-grid-zmd:ready', '*'); } catch (e) {} }
   }
@@ -1261,7 +1451,7 @@
   // 供调试 / 自动化测试
   window.__BOOT__ = {
     S, setPhase, paintHold, paintBreaker, finishHold, doRepeat, doExec, closeBreaker,
-    showDone, state: S,
+    showDone, state: S, locate: applyLocation, setGeo, findProvince,
     get nodes() { return nodes },
     get mapFit() { return mapFit },
   };

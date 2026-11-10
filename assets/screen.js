@@ -60,6 +60,7 @@
     var frame = document.createElement('iframe')
     frame.src = route + '/?auto=' + (mode === 'auto' ? '1' : '0')
     frame.setAttribute('title', '国家电网启动序列')
+    frame.setAttribute('allow', 'geolocation')
     frame.style.cssText = 'display:block;width:100%;height:100%;border:0'
 
     root.appendChild(frame)

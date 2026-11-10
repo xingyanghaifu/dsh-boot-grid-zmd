@@ -17,6 +17,7 @@
 | DSH 注入逻辑 | `node smoke.mjs` | 通过：路由注册、注入表 2 条、6 个资产、404 拦截、脚本引用检查 |
 | 页面静态检查 | `node tools/check.mjs` | 通过：50 个 id / 46 个 JS 引用无缺失、无语法错误、脚本文件存在 |
 | 空间层次 + 播放模式复检 | `node tools/depth-test.mjs` | 通过：17 项 PASS；详见 §9 |
+| 定位接入复检 | `node tools/location-test.mjs` | 通过：13 项 PASS；详见 §9.2 |
 
 ---
 
@@ -41,7 +42,7 @@
 | 覆盖层 screen.js | 注入后检查 iframe，再按 Esc | 通过：iframe `src=.../?auto=1`，Esc 后 1s 内移除（`tools/overlay-test.mjs`） |
 | 悬停反馈 | 鼠标移到「昌吉」节点 | 通过：经纬读数跟随、节点角括号、tooltip `昌吉 · ±1100 kV`（`docs/shots/16-hover-node.png`） |
 | 键盘按住接入 | focus + 按住 Space 1.4s | 通过：phase `order`，hold=1 |
-| 减弱动效 | `prefers-reduced-motion: reduce` | 通过：扫描带/入场位移关闭，交互与状态保留 |
+| 减弱动效 | `prefers-reduced-motion: reduce` | 通过：地图扫描/入场位移关闭，交互与状态保留 |
 | 控制台错误 | 全流程监听 `Runtime.exceptionThrown` / `Log.entryAdded` | 0 条 |
 
 ---
@@ -110,6 +111,7 @@
 | 无停用口号 / 无 Q/GDW 条款号 / 无 SGCC 缩写 | 通过 |
 | 非官方、非实时、非商用声明 | 通过（顶部 SIM、底部声明、完成页脚注） |
 | 地图非标准地图 | 已标注 `SIMULATED` 并在文档限定 |
+| 定位经营区回退 | 通过（26 省 / 88% 口径；南方五省区与港澳台回退全国视图） |
 
 ---
 
@@ -128,6 +130,8 @@
 | 9 | 完成页未显示时按钮可被 Tab 到；`aria-live` 每帧播报进度；DSH 覆盖层播完要等点击才交还 | 完成页只做了 opacity；dock 带 aria-live；无自动交还 | 完成页改 `visibility` 切换、背景层 `inert`、去掉 dock 的 aria-live、iframe 内 3 秒倒计时自动交还 |
 | 10 | 1024×768 指令与回显被横向裁切 | 指令使用 `white-space: nowrap`，窄屏容器不足 | 1120px 以下允许换行并缩小字号/字距，回归通过 |
 | 11 | 首版深度地图逐帧重绘 5153 点，帧间隔 33.3ms | 每点切换 `fillStyle` + 每帧整图 `drawImage` | 地图/城市点/热点烘焙，逐帧一次 `clip + drawImage`，回到 16.7ms |
+| 12 | 新增 `province-meta.js` 在当前运行中的插件路由 404 | `entry.js` 白名单在 DSH 启动时已加载，新文件不生效；重启才能加路由 | 把省份元数据内联进已白名单的 `china-data.js`，无需重启、不新增资源路由 |
+| 13 | 全屏扫描带动画把帧间隔拉到 33.3ms | 全屏渐变 + 9s 动画在软件合成下占满一帧；隐藏后回到 16.7ms | 移除全屏扫描带，保留地图内扫描与静态扫描线纹理；中位回到 16.7ms（p95 33.4） |
 
 ---
 
@@ -144,7 +148,8 @@ node tools/test.mjs                # 四拍交互全流程
 node tools/probe.mjs               # 悬停 / 黄扫 / 键盘 / 减弱动效
 node tools/takeover.mjs            # 自动演示接管 + iframe 消息
 node tools/depth-capture.mjs docs/depth/after   # 同状态空间层次截图
-node tools/depth-test.mjs          # 本轮全量回归（已安装路由）
+node tools/depth-test.mjs          # 空间层次/模式全量回归（已安装路由）
+node tools/location-test.mjs       # 定位查找 / 实时定位 / 越界回退
 node tools/perf.mjs                # 90 帧间隔采样
 ```
 
@@ -157,7 +162,8 @@ node tools/perf.mjs                # 90 帧间隔采样
 3. **地图非标准地图**：仅本地演示，不可直接公开发布。
 4. **未做移动端竖屏版式**：主验收尺寸 1440×900；1280×720 为短屏下限；1024×768 只做应急降级验证。
 5. **音频未做听感验收**：只验证了 AudioContext 创建与音量上限（0.035 增益），未做主观试听；默认在首次真实输入后才发声，可一键关闭。
-6. **帧率只做本机 headless 采样**：16.7ms 中位只代表本次 Edge/headless 环境，不代表所有 GPU/DPI 或真实 DSH 覆盖层场景。
+6. **帧率只做本机 headless 采样**：两轮中位 16.7ms、p95 33.4–49.9ms、偶发 1 帧 >50ms；只代表本机 Edge/headless 环境，不代表所有 GPU/DPI 或真实 DSH 覆盖层场景。
+7. **定位依赖浏览器权限与简化省界**：省界附近可能误判到相邻省；只到省级，不提供市/县或供电所；南方电网五省区与港澳台只回退全国视图；未在真实手机 GPS、不同浏览器权限 UI 或企业代理环境下验证。
 
 ---
 
@@ -171,7 +177,7 @@ node tools/perf.mjs                # 90 帧间隔采样
 | 短按中断后回 access、`hold=0` | PASS |
 | 复诵前「执行」禁用；合闸 48% 松手回弹到 0 | PASS |
 | 真实鼠标四阶段到完成页 | PASS |
-| 减弱动效键盘四阶段；地图 220ms 内无变化；扫描条隐藏；无黄扫 | PASS |
+| 减弱动效键盘四阶段；地图 220ms 内无变化；无全屏扫描；无黄扫 | PASS |
 | 自动演示被真实输入接管 | PASS |
 | 1920 / 1440 / 1366 / 1280 / 1024 × 四阶段：按钮不越坞，指令/回显/提示不横向裁切 | PASS |
 | 抬高后的节点顶面命中「昌吉」 | PASS |
@@ -182,7 +188,7 @@ node tools/perf.mjs                # 90 帧间隔采样
 | 注入真实 `screen.js` 后 Esc 移除覆盖层 | PASS |
 | 控制台异常 | 0 |
 | 页面资源失败 | 仅浏览器自动请求的 `/favicon.ico` 404；页面自身无失败 |
-| 89 帧帧间隔（1440×900，`?jump=boot`） | 中位 16.7ms / p95 16.7ms / >50ms 0 帧 |
+| 89 帧帧间隔（1440×900，`?jump=boot`，两轮采样） | 中位 16.7ms / p95 33.4–49.9ms / >50ms 0–1 帧（空白页 16.7ms） |
 | 同版本烘焙前采样 | 中位 33.3ms / p95 50ms / >50ms 3 帧（后通过烘焙消除） |
 
 说明：本轮修改了 `assets/index.html`、`assets/boot.css`、`assets/boot.js`、`assets/screen.js`，新增 `tools/depth-capture.mjs`、`tools/depth-test.mjs`、`tools/perf.mjs`、`docs/depth/`；未改官方标识、品牌文案、地图数据、四阶段流程或 DSH 路由。
@@ -194,3 +200,23 @@ node tools/perf.mjs                # 90 帧间隔采样
 - 自动播放中任何真实指针/按键操作会立即转手动并写入 `manual`，避免下次又被自动带走。
 - 证据：`docs/depth/mode/manual-1440.png`、`auto-1440.png`、`manual-1024.png`。
 - 清空浏览器 cookie 或换 host（如 `localhost` ↔ `127.0.0.1`）会回到默认手动；不做跨设备同步。
+
+### 9.2 定位接入（默认关闭）
+
+| 检查项 | 结果 |
+|---|---|
+| 默认关闭：无 cookie 时 `geo=false`、按钮「定位 关」、地图「全国视图 · NATIONAL」 | PASS |
+| 上海坐标 → 上海市、`inSG=true`、「上海电网」、4 个省级环高亮 | PASS |
+| 广州坐标 → 广东省、`inSG=false`、「非国网经营区 · 全国视图」、无高亮 | PASS |
+| 呼和浩特 → 内蒙古、`partial=true`、标注「蒙东/蒙西以供电营业区为准」 | PASS |
+| 乌鲁木齐 → 新疆、「新疆电网」 | PASS |
+| 边界覆盖：海南 / 香港 / 西藏 / 台湾归属与经营区判断 | PASS |
+| 真实 `navigator.geolocation` 路径（CDP 授权 + 坐标覆盖）→ 上海电网、cookie=1 | PASS |
+| 关闭定位 → 清除区域与高亮、按钮「定位 关」、cookie=0 | PASS |
+| 拒绝/不可用 → 自动回退全国视图、按钮关闭、cookie=0、不反复弹权限 | PASS |
+| 自动演示 + 定位开启：自动进入 order，区域保持上海电网 | PASS |
+| 真实 DSH 覆盖层 iframe（`screen.js` + `allow=geolocation`）：iframe 内解析上海电网，Esc 退场 | PASS |
+| 1024×768：定位按钮在视口内、地图标签不越界、idline 按既有规则隐藏 | PASS |
+| 控制台异常 / 页面资源失败 | 0 / 无 |
+
+证据：`docs/depth/location/shanghai.png`、`guangzhou.png`、`live-shanghai.png`、`shanghai-1024.png`。坐标只在页面内参与判定，不写日志、不上传；持久化的只有 `dsh_boot_grid_zmd_geo=0/1`。

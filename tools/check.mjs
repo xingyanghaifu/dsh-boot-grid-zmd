@@ -31,7 +31,8 @@ for (const s of scripts) if (!fs.existsSync(dir + s)) { console.error('missing s
 const must = ['stage', 'map', 'bg', 'wave', 'log', 'fill', 'pct', 'phaseText', 'dock', 'stepNo', 'stepName', 'stepEn',
   'holdBtn', 'holdArc', 'holdFill', 'holdT', 'orderText', 'orderEcho', 'repeatBtn', 'execBtn', 'brkTrack', 'brkFill',
   'brkKnob', 'kv', 'bootFill', 'bootPct', 'dockHint', 'toast', 'skipBtn', 'hush', 'done', 'doneCta', 'soundChip',
-  'mapCoord', 'nodeTip', 'clock', 'modeChip', 'freq', 'volt', 'act', 'state']
+  'mapCoord', 'nodeTip', 'clock', 'modeChip', 'freq', 'volt', 'act', 'state',
+  'geoBtn', 'regionName', 'mapRegion', 'modeBtn']
 const missMust = must.filter(x => !ids.includes(x))
 console.log('must ids missing:', missMust.length ? missMust : 'none')
 if (missMust.length) process.exitCode = 1

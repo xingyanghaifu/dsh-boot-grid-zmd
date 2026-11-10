@@ -44,6 +44,7 @@ html, body {
 }
 
 button { font: inherit; color: inherit; background: none; border: 0; cursor: pointer; }
+.sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; border: 0; }
 button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--acid); outline-offset: 2px; }
 
 #stage {
@@ -55,7 +56,8 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
   isolation: isolate;
 }
 
-#bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; opacity: .48; }
+
+#bg { position: absolute; inset: 0; width: 100%; height: 100%; z-index: 0; }
 #stage::before {
   content: ""; position: absolute; inset: 0; z-index: 2; pointer-events: none;
   background: linear-gradient(90deg, rgba(7, 12, 17, .55), transparent 37%),
@@ -129,6 +131,8 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 .chip:hover { color: var(--acid); border-color: var(--acid-dim); }
 .chip.on { color: var(--acid); border-color: var(--acid-dim); }
 .chip.mode { color: var(--acid-dim); border-color: rgba(251, 251, 70, .28); }
+.chip.geo { color: var(--dim); }
+.chip.geo.on { color: var(--acid); border-color: rgba(251, 251, 70, .4); }
 
 /* ---------- 左栏 ---------- */
 .leftcol {
@@ -327,6 +331,13 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
   color: var(--dim);
 }
 .map-scale i { display: block; width: 62px; height: 5px; border: 1px solid var(--dim); border-top: 0; }
+.map-region {
+  position: absolute; right: 14px; bottom: 10px; z-index: 3;
+  padding: 2px 6px; border: 1px solid var(--line); background: var(--bg);
+  font-family: var(--mono); font-size: 8.5px; letter-spacing: .14em;
+  color: var(--dim); text-transform: uppercase; pointer-events: none;
+}
+.map-region.on { color: var(--acid); border-color: rgba(251, 251, 70, .32); }
 .node-tip {
   position: absolute; z-index: 8; pointer-events: none; opacity: 0;
   transform: translateY(3px); transition: opacity .15s, transform .15s;
@@ -559,21 +570,7 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 }
 .skip:hover { color: var(--acid); }
 
-/* 扫描 / 颗粒 / 暗角 */
-.scan {
-  position: absolute; left: 0; right: 0; height: 170px; z-index: 7;
-  pointer-events: none; mix-blend-mode: screen;
-  background: linear-gradient(to bottom,
-    transparent 0%, rgba(251, 251, 70, .02) 38%, rgba(251, 251, 70, .045) 50%,
-    rgba(251, 251, 70, .02) 62%, transparent 100%);
-  animation: scanMove 9s linear infinite;
-}
-.scan::after {
-  content: ""; position: absolute; left: 0; right: 0; top: 50%; height: 1px;
-  background: rgba(251, 251, 70, .1);
-}
-@keyframes scanMove { from { transform: translateY(-190px); } to { transform: translateY(100vh); } }
-
+/* 颗粒 / 暗角 */
 .grain {
   position: absolute; inset: 0; z-index: 4; pointer-events: none; opacity: .28;
   background:
@@ -642,7 +639,6 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 #stage[data-state="ok"] .readout .dot { background: var(--volt); }
 #stage[data-state="err"] .readout .dot { background: var(--alert); }
 #stage[data-state="err"] .hazard { opacity: .95; background: repeating-linear-gradient(45deg, var(--alert) 0 9px, transparent 9px 18px); }
-#stage[data-state="done"] .scan { display: none; }
 
 /* 响应式 */
 @media (max-width: 1120px) {
@@ -682,7 +678,6 @@ button:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--a
 
 /* 动效降级：保留状态与交互，去掉位移/扫描 */
 @media (prefers-reduced-motion: reduce) {
-  .scan { display: none !important; }
   .panel, .node-tip, .toast, .hold, .key, .done-inner { animation: none !important; transition: none !important; translate: none !important; }
   .panel { clip-path: none !important; transform: none !important; }
   .done-inner { transform: none !important; }
